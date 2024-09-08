@@ -1,10 +1,9 @@
 from motor.motor_asyncio import AsyncIOMotorClient
 from configs.mongo_conf import MONGODB_URI, MONGODB_DB_NAME
-from configs.log_conf import setup_logging
 import logging
 import asyncio
 
-setup_logging()
+logger = logging.getLogger(__name__)
 
 
 class MongoDBConnector:
@@ -47,11 +46,11 @@ class MongoDBConnector:
             )
             cls._db = cls._client[MONGODB_DB_NAME]
             await cls._client.admin.command('ping')
-            logging.info("MongoDB에 성공적으로 연결되었습니다.")
+            logger.info("MongoDB에 성공적으로 연결되었습니다.")
         except Exception as e:
             cls._client = None
             cls._db = None
-            logging.error(f"MongoDB 연결에 실패했습니다: {e}")
+            logger.error(f"MongoDB 연결에 실패했습니다: {e}")
 
     @classmethod
     async def _is_connected(cls):

@@ -1,9 +1,9 @@
 import requests
 from configs.slack_conf import SLACK_API_TOKEN, SLACK_WEBHOOK_URL, HOST
-from configs.log_conf import setup_logging
 import logging
 
-setup_logging()
+logger = logging.getLogger(__name__)
+
 
 def get_slack_user_id(email: str) -> str:
     """
@@ -19,7 +19,7 @@ def get_slack_user_id(email: str) -> str:
     response = requests.get(f'https://slack.com/api/users.lookupByEmail?email={email}', headers=headers, verify=False)
     if response.status_code == 200 and response.json()['ok']:
         return response.json()['user']['id']
-    logging.error(f"Slack 사용자 ID 조회 실패: {email}")
+    logger.error(f"Slack 사용자 ID 조회 실패: {email}")
     return None
 
 def send_slack_notification(user_email: str, title: str, instance_info: str, db_info: str, pid_info: str, execution_time: float):
@@ -53,7 +53,7 @@ def send_slack_notification(user_email: str, title: str, instance_info: str, db_
         logging.error(error_message)
         raise ValueError(error_message)
 
-    logging.info(f"Slack 알림 전송 성공: {user_email}")
+    logger.info(f"Slack 알림 전송 성공: {user_email}")
 
 # 사용 예시
 if __name__ == "__main__":
@@ -67,4 +67,4 @@ if __name__ == "__main__":
             execution_time=10.5
         )
     except ValueError as e:
-        logging.error(f"Slack 알림 전송 중 오류 발생: {e}")
+        logger.error(f"Slack 알림 전송 중 오류 발생: {e}")

@@ -1,9 +1,62 @@
-### Environment variables
-@hostname = localhost
-@port = 8000
-@host = {{hostname}}:{{port}}
-@contentType = application/json
+@baseUrl = http://localhost:8000/api/v1
 
-### 1. Get status for a specific instance without specifying commands
-GET http://localhost:8000/api/v1/instance_setup/list_slow_instances
+### Slow Queries API Tests
+
+# Get slow queries (default parameters)
+GET {{baseUrl}}/slow_queries/
+Accept: application/json
+
+###
+
+# Get slow queries with custom parameters
+GET {{baseUrl}}/slow_queries/?days=7&instance=test-instance&min_time=5&limit=50&skip=10
+Accept: application/json
+
+###
+
+### Instance Setup API Tests
+
+# List all slow MySQL instances
+GET {{baseUrl}}/instance_setup/list_slow_instances/
+Accept: application/json
+
+###
+
+# Add a new slow MySQL instance
+POST {{baseUrl}}/instance_setup/add_slow_instance/
+Content-Type: application/json
+
+{
+    "environment": "PROD",
+    "db_type": "MySQL",
+    "cluster_name": "main-cluster",
+    "instance_name": "prod-db-1",
+    "host": "prod-db-1.example.com",
+    "port": 3306,
+    "region": "us-west-2",
+    "user": "monitor_user",
+    "password": "strongpassword123",
+    "db": "information_schema"
+}
+
+###
+
+# Delete a slow MySQL instance
+DELETE {{baseUrl}}/instance_setup/delete_slow_instance/?instance_name=prod-db-1
+Accept: application/json
+
+### 기본 쿼리 (파라미터 없음)
+GET {{baseUrl}}/query_tool/slow_queries
+Accept: application/json
+
+### 단일 인스턴스 쿼리
+GET {{baseUrl}}/slow_queries?instance=rastalion.me
+Accept: application/json
+
+### 다중 인스턴스 쿼리
+GET {{baseUrl}}/slow_queries?instance=instance1&instance=instance2
+Accept: application/json
+
+### 날짜 필터 적용
+GET {{baseUrl}}/slow_queries?days=7
 Accept: application/json

@@ -10,24 +10,22 @@ import traceback
 
 from modules.mongodb_connector import MongoDBConnector
 from modules.time_utils import get_kst_time
-from configs.log_conf import setup_logging
 from configs.app_conf import app_settings
 
 from .routes.instance_setup import router as instance_setup_router
+from .routes.slow_query import router as slow_queries_router
 
-
-setup_logging()
+# Setup logging once at the module level
 logger = logging.getLogger(__name__)
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await MongoDBConnector.initialize()
-    logger.info(f"{get_kst_time()} - MongoDB connection initialized.")
+    logger.info(f"MongoDB connection initialized at {get_kst_time()}")
     yield
     if MongoDBConnector.client:
         await MongoDBConnector.close()
-        logger.info(f"{get_kst_time()} - MongoDB connection closed.")
+        logger.info(f"MongoDB connection closed at {get_kst_time()}")
 
 app = FastAPI(
     title=app_settings.APP_TITLE,
@@ -48,8 +46,8 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory=app_settings.STATIC_FILES_DIR), name="static")
 templates = Jinja2Templates(directory=app_settings.TEMPLATES_DIR)
 
-app.include_router(instance_setup_router, prefix="/api/v1/instance_setup")  # Updated router inclusion
-
+app.include_router(instance_setup_router, prefix="/api/v1/instance_setup")
+app.include_router(slow_queries_router, prefix="/api/v1/query_tool")
 
 @app.get("/favicon.ico")
 async def get_favicon():
@@ -57,7 +55,6 @@ async def get_favicon():
         return FileResponse(app_settings.FAVICON_PATH)
     else:
         return Response(content="", media_type="image/x-icon")
-
 
 @app.get("/", tags=["Health Check"])
 async def health_check():
@@ -68,8 +65,6 @@ async def health_check():
     except Exception as e:
         logger.error(f"Health check failed: {str(e)}")
         return JSONResponse(content={"status": "unhealthy", "database": "disconnected"}, status_code=500)
-
-
 
 @app.get("/sql-plan", tags=["UI"])
 async def sql_explain(request: Request):
@@ -92,5 +87,5 @@ async def global_exception_handler(request, exc):
     logger.error(error_msg)
     return JSONResponse(
         status_code=500,
-        content={"message": "Internal server error", "error": error_msg},
+        content={"message": "Internal server error", "error": str(exc)},
     )

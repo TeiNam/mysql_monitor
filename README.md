@@ -1,5 +1,6 @@
-Welcome
+# Welcome
 
+## 프로젝트 구조
 mysql_monitor/ \
 │ \
 ├── README.md \
@@ -39,3 +40,19 @@ mysql_monitor/ \
 │   └── time_utils.py \
 ├── report_tools/ \
 └── test_main.http \
+
+
+## .env 환경변수
+```
+## encrypt key
+AES_KEY=
+AES_IV=
+
+## mongodb
+MONGODB_URI=
+MONGODB_DB_NAME=mgmt_db
+
+## slack
+SLACK_WEBHOOK_URL=
+SLACK_API_TOKEN=
+```

@@ -1,0 +1,9 @@
+### Environment variables
+@hostname = localhost
+@port = 8000
+@host = {{hostname}}:{{port}}
+@contentType = application/json
+
+### 1. Get status for a specific instance without specifying commands
+GET http://localhost:8000/api/v1/instance_setup/list_slow_instances
+Accept: application/json

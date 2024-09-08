@@ -1,0 +1,299 @@
+/* General Styles */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #000000;
+    color: #ffffff;
+    margin: 0;
+    padding: 20px;
+}
+
+/* Typography */
+#heading {
+    text-align: center;
+    margin: 2em 0;
+    color: #ffffff;
+    font-size: 1.2em;
+}
+
+/* Layout */
+#content {
+    width: 95%;
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Container Styles */
+.container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.section {
+    flex: 1 1 calc(50% - 10px);
+    min-width: 300px;
+    background-color: #000000;
+    border: 1px solid #333333;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Form Styles */
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background-color: transparent;
+    transition: .4s ease-in-out;
+    margin-bottom: 2em;
+    padding: 0;
+}
+
+.field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    border-radius: 5px;
+    padding: 0.6em 1em;
+    border: 1px solid #444444;
+    outline: none;
+    color: white;
+    background-color: #000000;
+    width: 100%;
+    font-size: 1.1em;
+    box-sizing: border-box;
+}
+
+.field label {
+    white-space: nowrap;
+    min-width: 150px;
+}
+
+.field input, .field select {
+    flex-grow: 1;
+    background-color: #333333;
+    border: none;
+    outline: none;
+    color: #ffffff;
+    width: calc(100% - 160px);  /* 라벨 너비(150px)와 간격(10px)을 고려 */
+    padding: 5px 10px;
+    border-radius: 3px;
+}
+
+.field input:focus, .field select:focus {
+    background-color: #444444;
+    box-shadow: 0 0 0 2px rgba(12, 102, 237, 0.5);
+}
+
+/* Placeholder 스타일 */
+.field input::placeholder {
+    color: #999999;
+}
+
+/* Select 화살표 스타일 */
+.field select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23ffffff' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 30px;
+}
+
+/* Hide number input spinners */
+.field input[type='number'] {
+    -moz-appearance: textfield;
+}
+
+.field input[type='number']::-webkit-inner-spin-button,
+.field input[type='number']::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Input Validation Styles */
+.field input:invalid {
+    border-color: #ff4c4c;
+}
+
+.field input:valid {
+    border-color: #4caf50;
+}
+
+/* Button Styles */
+button {
+    font-family: Arial, Helvetica, sans-serif;
+    font-weight: bold;
+    color: white;
+    background-color: #333333;
+    padding: 1.0em 1.4em;
+    border: none;
+    border-radius: .6rem;
+    position: relative;
+    cursor: pointer;
+    overflow: hidden;
+    height: 3.0em;
+    width: auto;
+    min-width: 7.0em;
+    font-size: 1.0em;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+button span:not(:nth-child(6)) {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    height: 30px;
+    width: 30px;
+    background-color: #0c66ed;
+    border-radius: 50%;
+    transition: .6s ease;
+}
+
+button span:nth-child(6) {
+    position: relative;
+    z-index: 1;
+}
+
+button span:nth-child(1) { transform: translate(-3.3em, -4em); }
+button span:nth-child(2) { transform: translate(-6em, 1.3em); }
+button span:nth-child(3) { transform: translate(-.2em, 1.8em); }
+button span:nth-child(4) { transform: translate(3.5em, 1.4em); }
+button span:nth-child(5) { transform: translate(3.5em, -3.8em); }
+
+button:hover span:not(:nth-child(6)) {
+    transform: translate(-50%, -50%) scale(4);
+    transition: 1.5s ease;
+}
+
+/* Table Styles */
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+    margin-bottom: 2em;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+th, td {
+    padding: 8px;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-bottom: 1px solid #333333;
+}
+
+th {
+    background-color: #111111;
+}
+
+tr:nth-child(even) {
+    background-color: #0a0a0a;
+}
+
+tr:hover {
+    background-color: #1a1a1a;
+}
+
+#instanceTable {
+    width: 100%;
+}
+
+.delete-cell {
+    width: 80px;
+    text-align: center;
+}
+
+.delete-button {
+    padding: 5px 10px;
+    background-color: #ff4c4c;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8em;
+    width: 100%;
+    text-align: center;
+    transition: background-color 0.3s ease;
+}
+
+.delete-button:hover {
+    background-color: #ff0000;
+}
+
+.button-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+}
+
+/* Submit 버튼 컨테이너 스타일 */
+.submit-container {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+/* Submit 버튼 스타일 */
+.submit-container button {
+    padding: 1em 2em;
+}
+
+/* 반응형 스타일 */
+@media (max-width: 768px) {
+    .container {
+        flex-direction: column;
+    }
+
+    .section {
+        flex: 1 1 100%;
+    }
+
+    .field {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .field label {
+        margin-bottom: 5px;
+    }
+
+    .field input, .field select {
+        width: 100%;
+    }
+
+    #instanceTable {
+        min-width: 600px;
+    }
+}
+
+@media (max-width: 480px) {
+    body {
+        padding: 10px;
+    }
+
+    #content {
+        width: 100%;
+    }
+
+    .form {
+        padding: 1em;
+    }
+}

@@ -58,5 +58,29 @@ GET {{baseUrl}}/slow_queries?instance=instance1&instance=instance2
 Accept: application/json
 
 ### 날짜 필터 적용
-GET {{baseUrl}}/slow_queries?days=7
+GET {{baseUrl}}/query_tool/slow_queries?days=7
+Accept: application/json
+
+### 슬로우 쿼리 목록 조회
+GET {{baseUrl}}/slow_queries?days=7&instance=prd-uplusorder-instance-1&limit=10
+Accept: application/json
+
+### 특정 PID에 대한 EXPLAIN 실행
+POST {{baseUrl}}/query_tool/explain?pid=8020
+Accept: application/json
+
+### EXPLAIN 결과 마크다운으로 다운로드
+GET {{baseUrl}}/download?pid={{pidForTest}}
+Accept: text/markdown
+
+### 저장된 EXPLAIN 계획 목록 조회
+GET {{baseUrl}}/plans/
+Accept: application/json
+
+### 여러 인스턴스에 대한 슬로우 쿼리 목록 조회
+GET {{baseUrl}}/slow_queries?days=3&instance=prd-uplusorder-instance-1&instance=prd-uplusorder-instance-2&limit=20
+Accept: application/json
+
+### 전체 슬로우 쿼리 목록 조회 (기본값 사용)
+GET {{baseUrl}}/slow_queries
 Accept: application/json

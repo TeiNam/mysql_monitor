@@ -17,8 +17,8 @@ body {
 
 /* Layout */
 #content {
-    width: 95%;
-    max-width: 1400px;
+    width: 98%;
+    max-width: 1600px;
     margin: 0 auto;
     display: flex;
     flex-direction: column;
@@ -82,7 +82,7 @@ body {
     border: none;
     outline: none;
     color: #ffffff;
-    width: calc(100% - 160px);  /* 라벨 너비(150px)와 간격(10px)을 고려 */
+    width: calc(100% - 160px);
     padding: 5px 10px;
     border-radius: 3px;
 }
@@ -186,21 +186,29 @@ button:hover span:not(:nth-child(6)) {
 
 table {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
 
 th, td {
     padding: 8px;
     text-align: left;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     border-bottom: 1px solid #333333;
 }
 
 th {
     background-color: #111111;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    white-space: nowrap;
+}
+
+td {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 tr:nth-child(even) {
@@ -213,7 +221,24 @@ tr:hover {
 
 #instanceTable {
     width: 100%;
+    table-layout: fixed;
 }
+
+#instanceTable th, #instanceTable td {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 각 열의 너비 조정 */
+#instanceTable th:nth-child(1), #instanceTable td:nth-child(1) { width: 4%; }  /* Env */
+#instanceTable th:nth-child(2), #instanceTable td:nth-child(2) { width: 5%; }  /* DB Type */
+#instanceTable th:nth-child(3), #instanceTable td:nth-child(3) { width: 8%; } /* Region */
+#instanceTable th:nth-child(4), #instanceTable td:nth-child(4) { width: 13%; } /* Cluster Name */
+#instanceTable th:nth-child(5), #instanceTable td:nth-child(5) { width: 18%; } /* Instance Name */
+#instanceTable th:nth-child(6), #instanceTable td:nth-child(6) { width: 38%; } /* Host - 너비 증가 */
+#instanceTable th:nth-child(7), #instanceTable td:nth-child(7) { width: 4%; }  /* Port */
+#instanceTable th:nth-child(8), #instanceTable td:nth-child(8) { width: 8%; }  /* Actions */
 
 .delete-cell {
     width: 80px;
@@ -280,7 +305,7 @@ tr:hover {
     }
 
     #instanceTable {
-        min-width: 600px;
+        min-width: 800px;
     }
 }
 

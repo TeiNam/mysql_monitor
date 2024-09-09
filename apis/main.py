@@ -9,13 +9,15 @@ import logging
 import traceback
 
 from modules.mongodb_connector import MongoDBConnector
+from modules.mysql_connector import mysql_connector
 from modules.time_utils import get_kst_time
 from configs.app_conf import app_settings
 
 from .routes.instance_setup import router as instance_setup_router
 from .routes.slow_query import router as slow_queries_router
+from .routes.slow_query_explain import router as slow_query_explain_router
 
-# Setup logging once at the module level
+# Setup logging
 logger = logging.getLogger(__name__)
 
 @asynccontextmanager
@@ -46,8 +48,9 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory=app_settings.STATIC_FILES_DIR), name="static")
 templates = Jinja2Templates(directory=app_settings.TEMPLATES_DIR)
 
-app.include_router(instance_setup_router, prefix="/api/v1/instance_setup")
-app.include_router(slow_queries_router, prefix="/api/v1/query_tool")
+app.include_router(instance_setup_router, prefix="/api/v1/instance_setup", tags=["Instance Setup"])
+app.include_router(slow_queries_router, prefix="/api/v1/query_tool", tags=["Slow Queries"])
+app.include_router(slow_query_explain_router, prefix="/api/v1/query_tool", tags=["Query Explain"])
 
 @app.get("/favicon.ico")
 async def get_favicon():

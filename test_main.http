@@ -70,7 +70,7 @@ POST {{baseUrl}}/query_tool/explain?pid=8020
 Accept: application/json
 
 ### EXPLAIN 결과 마크다운으로 다운로드
-GET {{baseUrl}}/download?pid={{pidForTest}}
+GET {{baseUrl}}/query_tool/download?pid=8020
 Accept: text/markdown
 
 ### 저장된 EXPLAIN 계획 목록 조회

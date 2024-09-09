@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MySQL Slow Query Explain Tool</title>
+    <link rel="stylesheet" href="/static/css/explain.css">
+</head>
+<body>
+    <h1 id="heading">MySQL Slow Query Explain Tool</h1>
+
+    <div id="content" role="main">
+        <div class="section form">
+            <h2>Execute SQL plan & Document Download</h2>
+            <p>SQL Query의 실행 계획을 저장할 수 있으며, Markdown 형식으로 내려 받을 수 있습니다.</br></br> SELECT 쿼리만 실행 계획을 저장할 수 있습니다!</p>
+
+            <form id="explainForm">
+                <div class="field">
+                    <label for="pid">Enter PID:</label>
+                    <input type="number" id="pid" name="pid" required>
+                </div>
+
+                <div class="btn-container">
+                    <button type="submit" id="savePlanBtn">
+                        <span></span><span></span><span></span><span></span><span></span>
+                        <span class="text">Save SQLPlan</span>
+                    </button>
+                    <button type="button" id="downloadBtn">
+                        <span></span><span></span><span></span><span></span><span></span>
+                        <span class="text">Download</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <footer>
+        <p>Designed by <span id="author"> Tei / t'order</span> © <span id="copyright-year">2024</span></p>
+    </footer>
+
+    <script src="/static/js/explainHandler.js"></script>
+</body>
+</html>

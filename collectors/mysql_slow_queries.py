@@ -55,7 +55,7 @@ class SlowQueryMonitor:
                             AND USER not in ('monitor', 'rdsadmin', 'system user')
                             ORDER BY `TIME` DESC"""
 
-            result = await self.mysql_connectors[instance_name].execute_query(sql_query)
+            result = await self.mysql_connectors[instance_name].execute_query(instance_name, sql_query)
 
             for row in result:
                 await self.process_query_result(instance_name, row, current_pids)

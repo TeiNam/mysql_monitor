@@ -89,25 +89,28 @@ Accept: application/json
 ### MySQL Command Status API
 # All commands
 GET {{baseUrl}}/command_status
-    ?instance_name=orderservice
+    ?instance_name=dev-torder-orderservice-instance-1
 
-# Specific commands
+### Specific commands
 GET {{baseUrl}}/command_status
     ?instance_name=orderservice
     &command=update
     &command=select
 
 ### MySQL Disk Usage API
-# Single metric
 GET {{baseUrl}}/disk_usage
-    ?instance_name=orderservice
+    ?instance_name=dev-torder-orderservice-instance-1
     &metric=Binlog_cache_use
 
-# Multiple metrics
+### Multiple metrics
 GET {{baseUrl}}/disk_usage
-    ?instance_name=orderservice
-    &metric=Binlog_cache_use
-    &metric=Created_tmp_tables
+    ?instance_name=dev-torder-orderservice-instance-1
 
 ### Slow Query Stats API
 GET {{baseUrl}}/slow_query_stats
+
+### MySQL Disk Usage API
+GET {{baseUrl}}/disk_usage
+    ?instance_name=dev-torder-orderservice-instance-1
+    &metric=Created_tmp_tables
+    &metric=Created_tmp_disk_tables

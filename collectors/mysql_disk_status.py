@@ -9,11 +9,18 @@ from modules.load_instance import load_instances_from_mongodb
 from modules.mongodb_connector import MongoDBConnector
 from modules.mysql_connector import mysql_connector
 from configs.mongo_conf import mongo_settings
-from configs.app_conf import app_settings
 from configs.log_conf import LOG_LEVEL, LOG_FORMAT
 
 logging.basicConfig(level=getattr(logging, LOG_LEVEL), format=LOG_FORMAT)
 logger = logging.getLogger(__name__)
+
+MYSQL_METRICS = [
+    'Binlog_cache_use',
+    'Binlog_cache_disk_use',
+    'Created_tmp_tables',
+    'Created_tmp_files',
+    'Created_tmp_disk_tables'
+]
 
 @dataclass
 class MySQLMetric:
@@ -46,7 +53,7 @@ class MySQLDiskStatusMonitor:
     def process_metrics(self, data: Dict[str, str], uptime: int) -> List[MySQLMetric]:
         processed_data = []
         for key, value in data.items():
-            if key in app_settings.MYSQL_METRICS and value != '0':
+            if key in MYSQL_METRICS and value != '0':
                 value = int(value)
                 avg_for_hours = round(value / max(uptime / 3600, 1), 2)
                 avg_for_seconds = round(value / max(uptime, 1), 2)
@@ -69,7 +76,7 @@ class MySQLDiskStatusMonitor:
             return
 
         raw_status = {}
-        for metric in app_settings.MYSQL_METRICS:
+        for metric in MYSQL_METRICS:
             query = f"SHOW GLOBAL STATUS LIKE '{metric}';"
             result = await self.execute_mysql_query(instance_name, query)
             if result:
@@ -88,7 +95,7 @@ class MySQLDiskStatusMonitor:
             instances = await load_instances_from_mongodb()
 
             for instance in instances:
-                await mysql_connector.create_pool(instance, pool_size=app_settings.POOL_SIZE)
+                await mysql_connector.create_pool(instance, pool_size=1)
 
             tasks = [self.fetch_and_save_instance_data(instance) for instance in instances]
             await asyncio.gather(*tasks)

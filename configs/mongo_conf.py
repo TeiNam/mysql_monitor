@@ -15,7 +15,8 @@ class MongoSettings(BaseSettings):
     MONGO_SLOW_LOG_COLLECTION: str = os.getenv("MONGO_SLOW_LOG_COLLECTION", "mysql_slow_queries")
     MONGO_SLOW_LOG_PLAN_COLLECTION: str = os.getenv("MONGO_SLOW_LOG_PLAN_COLLECTION", "mysql_slow_query_plans")
     MONGO_COM_STATUS_COLLECTION: str = os.getenv("MONGO_COM_STATUS_COLLECTION", "mysql_com_status")
-    MONGO_RDS_INSTANCE_ALL_STAT_COLLECTION: str= os.getenv("MONGO_RDS_INSTANCE_ALL_STAT_COLLECTION","aws_rds_instance_all_stat")
+    MONGO_RDS_INSTANCE_ALL_STAT_COLLECTION: str = os.getenv("MONGO_RDS_INSTANCE_ALL_STAT_COLLECTION","aws_rds_instance_all_stat")
+    MONGO_DISK_USAGE_COLLECTION: str = os.getenv("MONGO_DISK_USAGE_COLLECTION", "mysql_disk_usage")
 
 
     class Config:

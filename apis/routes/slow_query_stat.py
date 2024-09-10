@@ -57,6 +57,6 @@ async def get_statistics():
             }
         }
     ]
-    cursor = db[mongo_settings.MONGO_SLOWLOG_COLLECTION].aggregate(aggregation_pipeline)
+    cursor = db[mongo_settings.MONGO_SLOW_LOG_COLLECTION].aggregate(aggregation_pipeline)
     result = await cursor.to_list(length=None)
     return result

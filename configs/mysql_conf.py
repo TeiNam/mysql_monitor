@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # MySQL 슬로우 쿼리 설정
-EXEC_TIME = int(os.getenv('EXEC_TIME', 1))  # 기본값 1초
+EXEC_TIME = int(os.getenv('EXEC_TIME', 2))  # 기본값 1초
 
 # 기타 MySQL 관련 설정들
 MYSQL_DEFAULT_PORT = 3306

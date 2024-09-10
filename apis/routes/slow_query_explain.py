@@ -8,7 +8,7 @@ from fastapi.responses import Response
 from datetime import datetime, timezone, timedelta
 
 from modules.mongodb_connector import MongoDBConnector
-from modules.mysql_connector import mysql_connector
+from modules.mysql_connector import MySQLConnector
 from modules.load_instance import load_instances_from_mongodb
 from configs.mongo_conf import mongo_settings
 
@@ -36,7 +36,7 @@ class SQLQueryExecutor:
         try:
             validated_sql = SQLQueryExecutor.validate_sql_query(sql_text)
             explain_query = f"EXPLAIN FORMAT=JSON {validated_sql}"
-            execution_plan = await mysql_connector.execute_query(instance_name, explain_query)
+            execution_plan = await MySQLConnector.execute_query(instance_name, explain_query)
             return execution_plan
         except Exception as e:
             logger.error(f"SQL 실행 중 에러 발생: {str(e)}")
@@ -77,7 +77,7 @@ async def execute_sql(pid: int = Query(..., description="The PID to lookup")):
             raise HTTPException(status_code=400, detail="instance_name에 해당하는 RDS 인스턴스 정보를 찾을 수 없습니다.")
 
         # MySQL 연결 전에 데이터베이스 설정
-        await mysql_connector.set_database(document["instance"], document["db"])
+        await MySQLConnector.set_database(document["instance"], document["db"])
 
         execution_plan_raw = await SQLQueryExecutor.execute(document["instance"], document["sql_text"])
         execution_plan = json.loads(execution_plan_raw[0]['EXPLAIN'])

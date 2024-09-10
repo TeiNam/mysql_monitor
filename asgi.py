@@ -1,6 +1,6 @@
 import uvicorn
 from configs.app_conf import app_settings
-from apis.main import app  # apis/main.py에서 app을 직접 가져옵니다.
+from apis import app
 
 __all__ = ['app']
 

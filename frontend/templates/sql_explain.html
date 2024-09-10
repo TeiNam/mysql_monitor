@@ -1,63 +1,115 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MySQL Slow Query Explain Tool</title>
     <link rel="stylesheet" href="/static/css/explain.css">
 </head>
 <body>
     <h1 id="heading">MySQL Slow Query Explain Tool</h1>
-
-    <div id="content" role="main">
-        <div class="section form">
+    <main id="content">
+        <section class="form">
             <h2>Execute SQL plan & Document Download</h2>
-            <p>SQL Query의 실행 계획을 저장할 수 있으며, Markdown 형식으로 내려 받을 수 있습니다.</br></br> SELECT 쿼리만 실행 계획을 저장할 수 있습니다!</p>
-
-            <form id="explainForm">
+            <p>SQL Query의 실행 계획을 저장할 수 있으며, Markdown 형식으로 내려 받을 수 있습니다. SELECT 쿼리만 실행 계획을 저장할 수 있습니다!</p>
+            <form id="sqlForm">
                 <div class="field">
                     <label for="pid">Enter PID:</label>
-                    <input type="number" id="pid" name="pid" required>
+                    <input class="input-field" type="number" id="pid" name="pid" required>
                 </div>
-
                 <div class="btn-container">
-                    <button type="submit" id="savePlanBtn">
-                        <span></span><span></span><span></span><span></span><span></span>
+                    <button type="button" id="saveExplain">
+                        <span class="circle1"></span>
+                        <span class="circle2"></span>
+                        <span class="circle3"></span>
+                        <span class="circle4"></span>
+                        <span class="circle5"></span>
                         <span class="text">Save SQLPlan</span>
                     </button>
-                    <button type="button" id="downloadBtn">
-                        <span></span><span></span><span></span><span></span><span></span>
+                    <button type="button" id="downloadLog">
+                        <span class="circle1"></span>
+                        <span class="circle2"></span>
+                        <span class="circle3"></span>
+                        <span class="circle4"></span>
+                        <span class="circle5"></span>
                         <span class="text">Download</span>
                     </button>
                 </div>
             </form>
-        </div>
-    </div>
-
+        </section>
+    </main>
     <footer>
-        <p>Designed by <span id="author"> Tei / t'order</span> © <span id="copyright-year">2024</span></p>
+        <p id="copyright-info">Designed by <span id="author"></span> © <span id="copyright-year"></span></p>
     </footer>
 
-    <script src="/static/js/explainHander.js"></script>
     <script>
-        // URL에서 PID 파라미터 가져오기
-        function getParameterByName(name, url = window.location.href) {
-            name = name.replace(/[\[\]]/g, '\\$&');
-            var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
-                results = regex.exec(url);
-            if (!results) return null;
-            if (!results[2]) return '';
-            return decodeURIComponent(results[2].replace(/\+/g, ' '));
+        function getQueryParam(param) {
+            const searchParams = new URLSearchParams(window.location.search);
+            return searchParams.get(param);
         }
 
-        // 페이지 로드 시 PID 입력창에 값 설정
-        document.addEventListener('DOMContentLoaded', function() {
-            var pidInput = document.getElementById('pid');
-            var pid = getParameterByName('pid');
-            if (pid) {
-                pidInput.value = pid;
-            }
+        const defaultPid = getQueryParam('pid');
+        if (defaultPid) {
+            document.getElementById('pid').value = defaultPid;
+        }
+
+        document.getElementById('saveExplain').addEventListener('click', function(event) {
+            const pid = document.getElementById('pid').value;
+            const apiUrl = `/api/v1/query_tool/explain`;
+
+            fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ pid: parseInt(pid) })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => { throw new Error(text) });
+                }
+                return response.json();
+            })
+            .then(data => {
+                alert('Explain executed and saved: ' + data.message);
+            })
+            .catch(error => {
+                console.error('There has been a problem with your fetch operation:', error);
+                alert('Error: ' + error.message);
+            });
         });
+
+        document.getElementById('downloadLog').addEventListener('click', function(event) {
+            const pid = document.getElementById('pid').value;
+            const apiUrl = `/api/v1/query_tool/download?pid=${pid}`;
+
+            fetch(apiUrl)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Error: ${response.status} ${response.statusText}`);
+                    }
+                    return response.blob();
+                })
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `slowlog_pid_${pid}.md`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                })
+                .catch(error => {
+                    console.error('Download failed:', error);
+                    alert(error.message);
+                });
+        });
+
+        const pageInfo = {
+            author: "Tei / t'order",
+            copyrightYear: "2024"
+        };
+        document.getElementById("author").textContent = pageInfo.author;
+        document.getElementById("copyright-year").textContent = pageInfo.copyrightYear;
     </script>
 </body>
 </html>

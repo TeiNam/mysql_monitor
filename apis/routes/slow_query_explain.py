@@ -17,6 +17,11 @@ router = APIRouter(tags=["Query Tool"])
 kst_delta = timedelta(hours=9)
 logger = logging.getLogger(__name__)
 
+
+class ExplainRequest(BaseModel):
+    pid: int
+
+
 class SQLQueryExecutor:
     @staticmethod
     def remove_sql_comments(sql_text):
@@ -32,21 +37,26 @@ class SQLQueryExecutor:
         return query_without_comments
 
     @staticmethod
-    async def execute(mysql_connector, instance_name, sql_text):
+    async def execute(mysql_connector, connection_params, sql_text):
         try:
             validated_sql = SQLQueryExecutor.validate_sql_query(sql_text)
             explain_query = f"EXPLAIN FORMAT=JSON {validated_sql}"
-            execution_plan = await mysql_connector.execute_query(instance_name, explain_query)
-            return execution_plan
+
+            execution_plan = await mysql_connector.execute_query_with_new_connection(connection_params, explain_query)
+            if not execution_plan or 'EXPLAIN' not in execution_plan[0]:
+                raise ValueError("EXPLAIN 결과가 예상된 형식이 아닙니다.")
+            return json.loads(execution_plan[0]['EXPLAIN'])
         except Exception as e:
-            logger.error(f"SQL 실행 중 에러 발생: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"SQL 실행 중 에러 발생: {str(e)}")
+            logger.error(f"SQL 실행 중 오류 발생: {str(e)}")
+            logger.error(f"쿼리: {explain_query}")
+            raise HTTPException(status_code=500, detail=f"SQL 실행 중 오류 발생: {str(e)}")
+
 
 class MarkdownGenerator:
     @staticmethod
     def generate(document):
         formatted_sql = sqlparse.format(document['sql_text'], reindent=True, keyword_case='upper')
-        formatted_explain = json.dumps(document['explain_result'], indent=4)
+        formatted_explain = json.dumps(document['explain_result'], indent=4, ensure_ascii=False)
         markdown_content = (
             f"### 인스턴스: {document['instance']}\n\n"
             f"- 데이터베이스: {document['db']}\n"
@@ -60,7 +70,8 @@ class MarkdownGenerator:
 
 
 @router.post("/explain")
-async def execute_sql(pid: int = Query(..., description="The PID to lookup")):
+async def execute_sql(request: ExplainRequest):
+    pid = request.pid
     try:
         mongodb = await MongoDBConnector.get_database()
         slow_log_collection = mongodb[mongo_settings.MONGO_SLOW_LOG_COLLECTION]
@@ -77,18 +88,17 @@ async def execute_sql(pid: int = Query(..., description="The PID to lookup")):
         if not rds_info:
             raise HTTPException(status_code=400, detail="instance_name에 해당하는 RDS 인스턴스 정보를 찾을 수 없습니다.")
 
-        # MySQL 연결 및 쿼리 실행
+        connection_params = {
+            "host": rds_info["host"],
+            "port": rds_info["port"],
+            "user": rds_info["user"],
+            "password": rds_info["password"],  # MySQLConnector 내부에서 복호화됨
+            "db": document["db"],
+            "charset": 'utf8mb4'
+        }
+
         mysql_connector = MySQLConnector("slow_query_explain")
-        validated_sql = SQLQueryExecutor.validate_sql_query(document["sql_text"])
-        explain_query = f"EXPLAIN FORMAT=JSON {validated_sql}"
-
-        execution_plan_raw = await mysql_connector.execute_query_with_new_connection(
-            rds_info,
-            document["db"],
-            explain_query
-        )
-
-        execution_plan = json.loads(execution_plan_raw[0]['EXPLAIN'])
+        execution_plan = await SQLQueryExecutor.execute(mysql_connector, connection_params, document["sql_text"])
 
         query_plan_document = {
             "pid": pid,
@@ -102,10 +112,11 @@ async def execute_sql(pid: int = Query(..., description="The PID to lookup")):
         }
         await plan_collection.update_one({"pid": pid}, {"$set": query_plan_document}, upsert=True)
 
-        return {"message": "SQL 쿼리에 대한 EXPLAIN이 실행 되었으며, 실행 계획이 저장 되었습니다."}
+        return {"message": "SQL 쿼리에 대한 EXPLAIN이 실행되었으며, 실행 계획이 저장되었습니다."}
     except Exception as e:
-        logger.error(f"execute_sql 함수 실행 중 에러 발생: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        logger.error(f"execute_sql 함수 실행 중 오류 발생: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"내부 서버 오류: {str(e)}")
+
 
 @router.get("/download", response_class=Response)
 async def download_markdown(pid: int = Query(...)):
@@ -119,14 +130,15 @@ async def download_markdown(pid: int = Query(...)):
             markdown_content += MarkdownGenerator.generate(document)
 
         if not markdown_content:
-            raise HTTPException(status_code=404, detail="No records found for the given PID")
+            raise HTTPException(status_code=404, detail="주어진 PID에 대한 기록을 찾을 수 없습니다.")
 
         filename = f"slowlog_pid_{pid}.md"
         headers = {'Content-Disposition': f'attachment; filename="{filename}"'}
-        return Response(content=markdown_content, media_type="text/markdown", headers=headers)
+        return Response(content=markdown_content.encode('utf-8'), media_type="text/markdown", headers=headers)
     except Exception as e:
-        logger.error(f"download_markdown 함수 실행 중 에러 발생: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        logger.error(f"download_markdown 함수 실행 중 오류 발생: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"내부 서버 오류: {str(e)}")
+
 
 @router.get("/plans/")
 async def get_items():
@@ -147,5 +159,5 @@ async def get_items():
 
         return items
     except Exception as e:
-        logger.error(f"get_items 함수 실행 중 에러 발생: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        logger.error(f"get_items 함수 실행 중 오류 발생: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"내부 서버 오류: {str(e)}")

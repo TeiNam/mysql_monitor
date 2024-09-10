@@ -1,19 +1,18 @@
 import uvicorn
-from contextlib import asynccontextmanager
+import asyncio
 from configs.app_conf import app_settings
 from apis import app
-
-@asynccontextmanager
-async def lifespan(app):
-    # 시작 시 실행할 코드
-    print("Application is starting up")
-    yield
-    # 종료 시 실행할 코드
-    print("Application is shutting down")
-
-app.router.lifespan_context = lifespan
+from collectors.collectors import main as collectors_main
 
 __all__ = ['app']
+
+async def start_collectors():
+    await collectors_main()
+
+@app.on_event("startup")
+async def startup_event():
+    # Collectors를 백그라운드 태스크로 실행
+    asyncio.create_task(start_collectors())
 
 if __name__ == "__main__":
     uvicorn.run(

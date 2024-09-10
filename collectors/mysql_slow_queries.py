@@ -8,12 +8,13 @@ from modules.mongodb_connector import MongoDBConnector
 from modules.mysql_connector import mysql_connector
 from modules.load_instance import load_instances_from_mongodb
 from configs.mongo_conf import mongo_settings
-from configs.mysql_conf import EXEC_TIME
 import logging
 from configs.log_conf import LOG_LEVEL, LOG_FORMAT
 
 logging.basicConfig(level=getattr(logging, LOG_LEVEL), format=LOG_FORMAT)
 logger = logging.getLogger(__name__)
+
+EXEC_TIME = 2
 
 @dataclass
 class QueryDetails:

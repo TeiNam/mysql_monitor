@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 from modules.load_instance import load_instances_from_mongodb
 from modules.mongodb_connector import MongoDBConnector
-from modules.mysql_connector import mysql_connector
+from modules.mysql_connector import MySQLConnector
 from configs.mongo_conf import mongo_settings
 from configs.log_conf import LOG_LEVEL, LOG_FORMAT
 
@@ -29,19 +29,25 @@ class MySQLMetric:
     avg_for_hours: float
     avg_for_seconds: float
 
+
 class MySQLDiskStatusMonitor:
     def __init__(self):
         self.mongodb = None
         self.status_collection = None
+        self.mysql_connector = MySQLConnector("disk_status")
 
     async def initialize(self):
         await MongoDBConnector.initialize()
         self.mongodb = await MongoDBConnector.get_database()
         self.status_collection = self.mongodb[mongo_settings.MONGO_DISK_USAGE_COLLECTION]
 
+        instances = await load_instances_from_mongodb()
+        for instance in instances:
+            await self.mysql_connector.create_pool(instance, pool_size=1)
+
     async def execute_mysql_query(self, instance_name: str, query: str, single_row: bool = False) -> Optional[Any]:
         try:
-            result = await mysql_connector.execute_query(instance_name, query)
+            result = await self.mysql_connector.execute_query(query)
             if single_row:
                 return int(result[0]['Value']) if result else 0
             else:
@@ -95,7 +101,7 @@ class MySQLDiskStatusMonitor:
             instances = await load_instances_from_mongodb()
 
             for instance in instances:
-                await mysql_connector.create_pool(instance, pool_size=1)
+                await self.mysql_connector.create_pool(instance, pool_size=1)
 
             tasks = [self.fetch_and_save_instance_data(instance) for instance in instances]
             await asyncio.gather(*tasks)
@@ -103,7 +109,7 @@ class MySQLDiskStatusMonitor:
         except Exception as e:
             logger.error(f"An error occurred: {e}")
         finally:
-            await mysql_connector.close_all_pools()
+            await self.mysql_connector.close_pool()
 
 async def run_selected_metrics_status():
     monitor = MySQLDiskStatusMonitor()

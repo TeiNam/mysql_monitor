@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 from modules.mongodb_connector import MongoDBConnector
-from modules.mysql_connector import mysql_connector
+from modules.mysql_connector import MySQLConnector
 from modules.load_instance import load_instances_from_mongodb
 from configs.mongo_conf import mongo_settings
 import logging
@@ -30,9 +30,17 @@ class QueryDetails:
 
 class SlowQueryMonitor:
     def __init__(self):
-        self.pid_time_cache: Dict[tuple, Dict[str, Any]] = {}
+        self.pid_time_cache: Dict[str, Dict[int, Dict[str, Any]]] = {}
         self.ignore_instance_names: List[str] = []
         self.logger = logging.getLogger(__name__)
+        self.mysql_connectors: Dict[str, MySQLConnector] = {}
+
+    async def initialize(self):
+        instances = await load_instances_from_mongodb()
+        for instance in instances:
+            instance_name = instance['instance_name']
+            self.mysql_connectors[instance_name] = MySQLConnector(instance_name)
+            await self.mysql_connectors[instance_name].create_pool(instance, pool_size=1)
 
     async def query_mysql_instance(self, instance_name: str, collection: Any) -> None:
         try:
@@ -47,7 +55,7 @@ class SlowQueryMonitor:
                             AND USER not in ('monitor', 'rdsadmin', 'system user')
                             ORDER BY `TIME` DESC"""
 
-            result = await mysql_connector.execute_query(instance_name, sql_query)
+            result = await self.mysql_connectors[instance_name].execute_query(sql_query)
 
             for row in result:
                 await self.process_query_result(instance_name, row, current_pids)
@@ -62,7 +70,10 @@ class SlowQueryMonitor:
         current_pids.add(pid)
 
         if time >= EXEC_TIME:
-            cache_data = self.pid_time_cache.setdefault((instance_name, pid), {'max_time': 0})
+            if instance_name not in self.pid_time_cache:
+                self.pid_time_cache[instance_name] = {}
+
+            cache_data = self.pid_time_cache[instance_name].setdefault(pid, {'max_time': 0})
             cache_data['max_time'] = max(cache_data['max_time'], time)
 
             if 'start' not in cache_data:
@@ -75,8 +86,8 @@ class SlowQueryMonitor:
             info_cleaned = re.sub(r'[\n\t\r]+', ' ', info_cleaned).strip()
 
             cache_data['details'] = QueryDetails(
-                instance=instance_name,  # 인스턴스 이름 그대로 유지
-                db=db,  # 데이터베이스 이름 그대로 유지
+                instance=instance_name,
+                db=db,
                 pid=pid,
                 user=user,
                 host=host,
@@ -86,13 +97,15 @@ class SlowQueryMonitor:
             )
 
     async def handle_finished_queries(self, instance_name: str, current_pids: set, collection: Any) -> None:
-        for (instance, pid), cache_data in list(self.pid_time_cache.items()):
-            if pid not in current_pids and instance == instance_name:
+        if instance_name not in self.pid_time_cache:
+            return
+
+        for pid, cache_data in list(self.pid_time_cache[instance_name].items()):
+            if pid not in current_pids:
                 data_to_insert = vars(cache_data['details'])
                 data_to_insert['time'] = cache_data['max_time']
                 data_to_insert['end'] = datetime.now(pytz.utc)
 
-                # 대소문자를 구분하여 검색
                 existing_query = await collection.find_one({
                     'pid': data_to_insert['pid'],
                     'instance': data_to_insert['instance'],
@@ -104,21 +117,20 @@ class SlowQueryMonitor:
                     await collection.insert_one(data_to_insert)
                     self.logger.info(f"Inserted slow query data: instance={instance_name}, DB={data_to_insert['db']}, PID={pid}, execution_time={data_to_insert['time']}s")
 
-                del self.pid_time_cache[(instance, pid)]
+                del self.pid_time_cache[instance_name][pid]
 
     async def run_mysql_slow_queries(self) -> None:
         try:
+            await self.initialize()
             await MongoDBConnector.initialize()
             db = await MongoDBConnector.get_database()
             collection = db[mongo_settings.MONGO_SLOW_LOG_COLLECTION]
 
-            instances = await load_instances_from_mongodb()
-            self.logger.info(f"Starting slow query monitoring for {len(instances)} MySQL instances")
+            self.logger.info(f"Starting slow query monitoring for MySQL instances")
 
             while True:
                 tasks = []
-                for instance_data in instances:
-                    instance_name = instance_data["instance_name"]
+                for instance_name in self.mysql_connectors.keys():
                     if instance_name not in self.ignore_instance_names:
                         tasks.append(self.query_mysql_instance(instance_name, collection))
 
@@ -132,7 +144,8 @@ class SlowQueryMonitor:
         except Exception as e:
             self.logger.error(f"An error occurred in slow query monitoring: {e}")
         finally:
-            await mysql_connector.close_all_pools()
+            for connector in self.mysql_connectors.values():
+                await connector.close_pool()
             self.logger.info("Slow query monitoring stopped, all resources released")
 
 if __name__ == '__main__':

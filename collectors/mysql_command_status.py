@@ -6,7 +6,7 @@ from typing import Dict, Any, Optional
 
 from modules.load_instance import load_instances_from_mongodb
 from modules.mongodb_connector import MongoDBConnector
-from modules.mysql_connector import mysql_connector
+from modules.mysql_connector import MySQLConnector
 from configs.mongo_conf import mongo_settings
 from configs.log_conf import LOG_LEVEL, LOG_FORMAT
 
@@ -22,19 +22,25 @@ DESIRED_COMMANDS = [
     'Com_commit', 'Com_begin', 'Com_rollback'
 ]
 
+
 class MySQLCommandStatusMonitor:
     def __init__(self):
         self.mongodb = None
         self.status_collection = None
+        self.mysql_connector = MySQLConnector("command_status")
 
     async def initialize(self):
         await MongoDBConnector.initialize()
         self.mongodb = await MongoDBConnector.get_database()
         self.status_collection = self.mongodb[mongo_settings.MONGO_COM_STATUS_COLLECTION]
 
+        instances = await load_instances_from_mongodb()
+        for instance in instances:
+            await self.mysql_connector.create_pool(instance, pool_size=1)
+
     async def query_mysql_status(self, instance_name: str, query: str, single_row: bool = False) -> Optional[Any]:
         try:
-            result = await mysql_connector.execute_query(instance_name, query)
+            result = await self.mysql_connector.execute_query(query)
             if single_row:
                 return int(result[0]['Value']) if result else 0
             else:
@@ -89,7 +95,7 @@ class MySQLCommandStatusMonitor:
             instances = await load_instances_from_mongodb()
 
             for instance in instances:
-                await mysql_connector.create_pool(instance, pool_size=1)
+                await self.mysql_connector.create_pool(instance, pool_size=1)
 
             tasks = [self.query_instance_and_save_to_db(instance) for instance in instances]
             await asyncio.gather(*tasks)
@@ -97,7 +103,7 @@ class MySQLCommandStatusMonitor:
         except Exception as e:
             logger.error(f"An error occurred: {e}")
         finally:
-            await mysql_connector.close_all_pools()
+            await self.mysql_connector.close_pool()
 
 # 클래스의 인스턴스를 미리 생성
 mysql_command_status_monitor = MySQLCommandStatusMonitor()

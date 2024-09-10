@@ -2,10 +2,10 @@ import asyncio
 import pytz
 import logging
 from datetime import datetime, timedelta
-from .mysql_slow_queries import SlowQueryMonitor
-from .mysql_command_status import MySQLCommandStatusMonitor
-from .rds_instance_status import run_rds_instance_collector
-from .mysql_disk_status import MySQLDiskStatusMonitor
+from collectors.mysql_slow_queries import SlowQueryMonitor
+from collectors.mysql_command_status import MySQLCommandStatusMonitor
+from collectors.rds_instance_status import run_rds_instance_collector
+from collectors.mysql_disk_status import MySQLDiskStatusMonitor
 from configs.log_conf import LOG_LEVEL, LOG_FORMAT
 
 logging.basicConfig(level=getattr(logging, LOG_LEVEL), format=LOG_FORMAT)

@@ -1,30 +1,29 @@
 #!/bin/bash
 
-# 스크립트가 있는 디렉토리로 이동
-cd "$(dirname "$0")"
-
-# 가상환경 경로 설정 (프로젝트 루트에 있다고 가정)
-VENV_PATH="./venv"
-
-# 가상환경이 존재하는지 확인
-if [ ! -d "$VENV_PATH" ]; then
-    echo "Error: Virtual environment not found at $VENV_PATH"
+# Check if pyenv is available
+if ! command -v pyenv &> /dev/null
+then
+    echo "pyenv could not be found. Please make sure it's installed and initialized."
     exit 1
 fi
 
-# 가상환경 활성화
-source "$VENV_PATH/bin/activate"
+# Activate pyenv and the virtual environment
+echo "Activating virtual environment: mysql_monitor"
+eval "$(pyenv init -)"
+eval "$(pyenv virtualenv-init -)"
+pyenv activate mysql_monitor
 
-# 가상환경이 제대로 활성화되었는지 확인
-if [ -z "$VIRTUAL_ENV" ]; then
-    echo "Error: Failed to activate virtual environment"
+# Check if virtual environment activation was successful
+if [[ "$VIRTUAL_ENV" != *"mysql_monitor"* ]]; then
+    echo "Failed to activate the virtual environment."
     exit 1
 fi
 
-echo "Virtual environment activated successfully"
+# Set environment variables if needed
+# export ENVIRONMENT=production
 
-# Collectors 실행
-echo "Starting collectors..."
+# Run the collectors
+echo "Starting the collectors..."
 
 # MySQL Slow Queries Collector
 python collectors/mysql_slow_queries.py &
@@ -42,12 +41,13 @@ DISK_STATUS_PID=$!
 python collectors/rds_instance_status.py &
 RDS_STATUS_PID=$!
 
-# 모든 백그라운드 프로세스가 완료될 때까지 대기
+# Wait for all background processes to complete
 wait $SLOW_QUERIES_PID $COMMAND_STATUS_PID $DISK_STATUS_PID $RDS_STATUS_PID
 
-echo "All collectors have finished"
+echo "All collectors have finished."
 
-# 가상환경 비활성화
-deactivate
+# Deactivate the virtual environment
+echo "Deactivating virtual environment"
+pyenv deactivate
 
-echo "Virtual environment deactivated"
+echo "Script completed."

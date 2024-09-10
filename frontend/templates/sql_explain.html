@@ -39,5 +39,25 @@
     </footer>
 
     <script src="/static/js/explainHander.js"></script>
+    <script>
+        // URL에서 PID 파라미터 가져오기
+        function getParameterByName(name, url = window.location.href) {
+            name = name.replace(/[\[\]]/g, '\\$&');
+            var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
+                results = regex.exec(url);
+            if (!results) return null;
+            if (!results[2]) return '';
+            return decodeURIComponent(results[2].replace(/\+/g, ' '));
+        }
+
+        // 페이지 로드 시 PID 입력창에 값 설정
+        document.addEventListener('DOMContentLoaded', function() {
+            var pidInput = document.getElementById('pid');
+            var pid = getParameterByName('pid');
+            if (pid) {
+                pidInput.value = pid;
+            }
+        });
+    </script>
 </body>
 </html>

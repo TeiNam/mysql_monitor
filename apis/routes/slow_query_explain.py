@@ -32,11 +32,11 @@ class SQLQueryExecutor:
         return query_without_comments
 
     @staticmethod
-    async def execute(instance_name, sql_text):
+    async def execute(mysql_connector, instance_name, sql_text):
         try:
             validated_sql = SQLQueryExecutor.validate_sql_query(sql_text)
             explain_query = f"EXPLAIN FORMAT=JSON {validated_sql}"
-            execution_plan = await MySQLConnector.execute_query(instance_name, explain_query)
+            execution_plan = await mysql_connector.execute_query(instance_name, explain_query)
             return execution_plan
         except Exception as e:
             logger.error(f"SQL 실행 중 에러 발생: {str(e)}")
@@ -58,6 +58,7 @@ class MarkdownGenerator:
         )
         return markdown_content
 
+
 @router.post("/explain")
 async def execute_sql(pid: int = Query(..., description="The PID to lookup")):
     try:
@@ -76,10 +77,17 @@ async def execute_sql(pid: int = Query(..., description="The PID to lookup")):
         if not rds_info:
             raise HTTPException(status_code=400, detail="instance_name에 해당하는 RDS 인스턴스 정보를 찾을 수 없습니다.")
 
-        # MySQL 연결 전에 데이터베이스 설정
-        await MySQLConnector.set_database(document["instance"], document["db"])
+        # MySQL 연결 및 쿼리 실행
+        mysql_connector = MySQLConnector("slow_query_explain")
+        validated_sql = SQLQueryExecutor.validate_sql_query(document["sql_text"])
+        explain_query = f"EXPLAIN FORMAT=JSON {validated_sql}"
 
-        execution_plan_raw = await SQLQueryExecutor.execute(document["instance"], document["sql_text"])
+        execution_plan_raw = await mysql_connector.execute_query_with_new_connection(
+            rds_info,
+            document["db"],
+            explain_query
+        )
+
         execution_plan = json.loads(execution_plan_raw[0]['EXPLAIN'])
 
         query_plan_document = {

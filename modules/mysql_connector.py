@@ -11,7 +11,7 @@ DEFAULT_POOL_SIZE = 3
 class MySQLConnector:
     def __init__(self, collector_name: str):
         self.collector_name = collector_name
-        self.pool = None
+        self.pools: Dict[str, Any] = {}
 
     async def create_pool(self, instance_info: Dict[str, Any], pool_size: int = DEFAULT_POOL_SIZE) -> None:
         """Create a connection pool for a MySQL instance."""
@@ -51,3 +51,39 @@ class MySQLConnector:
             self.pool.close()
             await self.pool.wait_closed()
             logger.info(f"Closed MySQL connection pool for {self.collector_name}")
+
+    async def set_database(self, instance_name: str, database: str) -> None:
+        """Set the database for a specific instance."""
+        if instance_name not in self.pools:
+            raise ValueError(f"No connection pool found for {instance_name} in {self.collector_name}")
+
+        try:
+            pool = self.pools[instance_name]
+            async with pool.acquire() as conn:
+                await conn.select_db(database)
+            logger.info(f"Set database to {database} for {self.collector_name} - {instance_name}")
+        except Exception as e:
+            logger.error(f"Error setting database for {self.collector_name} - {instance_name}: {str(e)}")
+            raise
+
+    async def execute_query_with_new_connection(self, instance_info: Dict[str, Any], database: str, query: str,
+                                                params: Tuple = None) -> List[Dict[str, Any]]:
+        """Create a new connection, execute a query, and close the connection."""
+        try:
+            decrypted_password = decrypt_password(instance_info['password'])
+            async with await create_pool(
+                    host=instance_info['host'],
+                    port=instance_info['port'],
+                    user=instance_info['user'],
+                    password=decrypted_password,
+                    db=database,
+                    maxsize=1
+            ) as pool:
+                async with pool.acquire() as conn:
+                    async with conn.cursor() as cursor:
+                        await cursor.execute(query, params)
+                        columns = [column[0] for column in cursor.description]
+                        return [dict(zip(columns, row)) for row in await cursor.fetchall()]
+        except Exception as e:
+            logger.error(f"Error executing query with new connection for {self.collector_name}: {str(e)}")
+            raise

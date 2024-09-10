@@ -66,7 +66,7 @@ GET {{baseUrl}}/slow_queries?days=7&instance=prd-uplusorder-instance-1&limit=10
 Accept: application/json
 
 ### 특정 PID에 대한 EXPLAIN 실행
-POST {{baseUrl}}/query_tool/explain?pid=8020
+POST {{baseUrl}}/query_tool/explain?pid=8733
 Accept: application/json
 
 ### EXPLAIN 결과 마크다운으로 다운로드

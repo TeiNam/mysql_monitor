@@ -1,21 +1,23 @@
 import os
+import logging
+import traceback
+
+from modules.mongodb_connector import MongoDBConnector
+from modules.time_utils import get_kst_time
+from configs.app_conf import app_settings
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import Response, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-import logging
-import traceback
-
-from modules.mongodb_connector import MongoDBConnector
-from modules.mysql_connector import mysql_connector
-from modules.time_utils import get_kst_time
-from configs.app_conf import app_settings
 
 from .routes.instance_setup import router as instance_setup_router
 from .routes.slow_query import router as slow_queries_router
 from .routes.slow_query_explain import router as slow_query_explain_router
+from .routes.mysql_com_status import router as mysql_com_status_router
+from .routes.mysql_disk_usage import router as mysql_disk_usage_router
+from .routes.slow_query_stat import router as slow_query_stat_router
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -51,6 +53,11 @@ templates = Jinja2Templates(directory=app_settings.TEMPLATES_DIR)
 app.include_router(instance_setup_router, prefix="/api/v1/instance_setup", tags=["Instance Setup"])
 app.include_router(slow_queries_router, prefix="/api/v1/query_tool", tags=["Slow Queries"])
 app.include_router(slow_query_explain_router, prefix="/api/v1/query_tool", tags=["Query Explain"])
+app.include_router(mysql_com_status_router, prefix="/api/v1", tags=["MySQL Command Status"])
+app.include_router(mysql_disk_usage_router, prefix="/api/v1", tags=["MySQL Disk Usage"])
+app.include_router(slow_query_stat_router, prefix="/api/v1", tags=["Slow Query Stats"])
+
+# ... (나머지 코드는 그대로 유지)
 
 @app.get("/favicon.ico")
 async def get_favicon():

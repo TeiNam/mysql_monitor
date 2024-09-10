@@ -84,3 +84,30 @@ Accept: application/json
 ### 전체 슬로우 쿼리 목록 조회 (기본값 사용)
 GET {{baseUrl}}/slow_queries
 Accept: application/json
+
+
+### MySQL Command Status API
+# All commands
+GET {{baseUrl}}/command_status
+    ?instance_name=orderservice
+
+# Specific commands
+GET {{baseUrl}}/command_status
+    ?instance_name=orderservice
+    &command=update
+    &command=select
+
+### MySQL Disk Usage API
+# Single metric
+GET {{baseUrl}}/disk_usage
+    ?instance_name=orderservice
+    &metric=Binlog_cache_use
+
+# Multiple metrics
+GET {{baseUrl}}/disk_usage
+    ?instance_name=orderservice
+    &metric=Binlog_cache_use
+    &metric=Created_tmp_tables
+
+### Slow Query Stats API
+GET {{baseUrl}}/slow_query_stats

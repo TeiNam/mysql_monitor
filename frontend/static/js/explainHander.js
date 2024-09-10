@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const pid = document.getElementById('pid').value;
 
         try {
-            const response = await fetch('/api/v1/explain/explain', {
+            const response = await fetch('/api/v1/query_tool/explain', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const pid = document.getElementById('pid').value;
 
         try {
-            const response = await fetch(`/api/v1/explain/download?pid=${pid}`);
+            const response = await fetch(`/api/v1/query_tool/download?pid=${pid}`);
 
             if (!response.ok) {
                 throw new Error('Failed to download SQL plan.');

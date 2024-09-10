@@ -14,7 +14,7 @@
             <form id="sqlForm">
                 <div class="field">
                     <label for="pid">Enter PID:</label>
-                    <input class="input-field" type="number" id="pid" name="pid" required>
+                    <input type="text" id="pid" name="pid" inputmode="numeric" pattern="\d*">
                 </div>
                 <div class="btn-container">
                     <button type="button" id="saveExplain">
@@ -37,10 +37,6 @@
             </form>
         </section>
     </main>
-    <footer>
-        <p id="copyright-info">Designed by <span id="author"></span> © <span id="copyright-year"></span></p>
-    </footer>
-
     <script>
         function getQueryParam(param) {
             const searchParams = new URLSearchParams(window.location.search);
@@ -111,5 +107,8 @@
         document.getElementById("author").textContent = pageInfo.author;
         document.getElementById("copyright-year").textContent = pageInfo.copyrightYear;
     </script>
+    <footer>
+        <p>Designed by <span id="author"> DBRE Tei, Team DevOps, t'order </span> © <span id="copyright-year">2024</span></p>
+    </footer>
 </body>
 </html>

@@ -38,7 +38,7 @@ class MongoDBConnector:
         try:
             cls._client = AsyncIOMotorClient(
                 MONGODB_URI,
-                tls=True,
+                tls=False,
                 tlsAllowInvalidCertificates=True,
                 tlsAllowInvalidHostnames=True,
                 directConnection=False,

@@ -34,7 +34,7 @@ class MySQLDiskStatusMonitor:
     def __init__(self):
         self.mongodb = None
         self.status_collection = None
-        self.mysql_connector = MySQLConnector("disk_status")
+        self.mysql_connectors: Dict[str, MySQLConnector] = {}
 
     async def initialize(self):
         await MongoDBConnector.initialize()
@@ -43,11 +43,13 @@ class MySQLDiskStatusMonitor:
 
         instances = await load_instances_from_mongodb()
         for instance in instances:
-            await self.mysql_connector.create_pool(instance, pool_size=1)
+            instance_name = instance['instance_name']
+            self.mysql_connectors[instance_name] = MySQLConnector("disk_status")
+            await self.mysql_connectors[instance_name].create_pool(instance, pool_size=1)
 
     async def execute_mysql_query(self, instance_name: str, query: str, single_row: bool = False) -> Optional[Any]:
         try:
-            result = await self.mysql_connector.execute_query(query)
+            result = await self.mysql_connectors[instance_name].execute_query(instance_name, query)
             if single_row:
                 return int(result[0]['Value']) if result else 0
             else:
@@ -100,16 +102,14 @@ class MySQLDiskStatusMonitor:
             await self.initialize()
             instances = await load_instances_from_mongodb()
 
-            for instance in instances:
-                await self.mysql_connector.create_pool(instance, pool_size=1)
-
             tasks = [self.fetch_and_save_instance_data(instance) for instance in instances]
             await asyncio.gather(*tasks)
 
         except Exception as e:
             logger.error(f"An error occurred: {e}")
         finally:
-            await self.mysql_connector.close_pool()
+            for instance_name, connector in self.mysql_connectors.items():
+                await connector.close_pool(instance_name)
 
 async def run_selected_metrics_status():
     monitor = MySQLDiskStatusMonitor()

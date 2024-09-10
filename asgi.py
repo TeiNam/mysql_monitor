@@ -1,7 +1,7 @@
 import uvicorn
 from contextlib import asynccontextmanager
 from configs.app_conf import app_settings
-from apis import app as application
+from apis import app
 
 @asynccontextmanager
 async def lifespan(app):
@@ -11,9 +11,9 @@ async def lifespan(app):
     # 종료 시 실행할 코드
     print("Application is shutting down")
 
-application.router.lifespan_context = lifespan
+app.router.lifespan_context = lifespan
 
-__all__ = ['application']
+__all__ = ['app']
 
 if __name__ == "__main__":
     uvicorn.run(

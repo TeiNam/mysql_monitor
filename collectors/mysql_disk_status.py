@@ -61,7 +61,7 @@ class MySQLDiskStatusMonitor:
     def process_metrics(self, data: Dict[str, str], uptime: int) -> List[MySQLMetric]:
         processed_data = []
         for key, value in data.items():
-            if key in MYSQL_METRICS and value != '0':
+            if key in MYSQL_METRICS:
                 value = int(value)
                 avg_for_hours = round(value / max(uptime / 3600, 1), 2)
                 avg_for_seconds = round(value / max(uptime, 1), 2)

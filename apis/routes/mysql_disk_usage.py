@@ -8,18 +8,27 @@ router = APIRouter()
 
 kst_delta = timedelta(hours=9)
 
-async def get_disk_usage_status(instance_name: str, metric_names: Optional[List[str]] = None):
+
+async def get_disk_usage_status(instance_name: str, metric_names: Optional[List[str]] = None,
+                                days: Optional[int] = None):
     db = await MongoDBConnector.get_database()
     collection = db[mongo_settings.MONGO_DISK_USAGE_COLLECTION]
     query = {'instance_name': instance_name}
 
-    projection = {'_id': 0, 'timestamp': 1, 'command_status': 1, 'metrics': 1}
-    document = await collection.find_one(query, projection, sort=[('timestamp', -1)])
-    return document if document else None
+    if days is not None:
+        end_date = datetime.now(kst_delta.tzinfo)
+        start_date = end_date - timedelta(days=days)
+        query['timestamp'] = {'$gte': start_date, '$lte': end_date}
 
-def transform_data_to_table_format(data: dict, metric_names: Optional[List[str]] = None):
+    projection = {'_id': 0, 'timestamp': 1, 'command_status': 1, 'metrics': 1}
+    cursor = collection.find(query, projection).sort('timestamp', -1)
+
+    return await cursor.to_list(length=None)
+
+
+def transform_data_to_table_format(data_list: List[dict], metric_names: Optional[List[str]] = None):
     transformed_data = []
-    if data:
+    for data in data_list:
         timestamp = data.get("timestamp")
         if timestamp:
             timestamp = timestamp + kst_delta
@@ -51,13 +60,15 @@ def transform_data_to_table_format(data: dict, metric_names: Optional[List[str]]
                 transformed_data.append(row)
     return transformed_data
 
+
 @router.get("/disk_usage")
 async def read_status(
         instance_name: str = Query(..., description="The name of the instance to retrieve"),
-        metric_name: Optional[List[str]] = Query(None, description="List of metric names to retrieve", alias="metric")
+        metric_name: Optional[List[str]] = Query(None, description="List of metric names to retrieve", alias="metric"),
+        days: Optional[int] = Query(None, description="Number of days to retrieve data for")
 ):
-    data = await get_disk_usage_status(instance_name)
-    if data:
-        transformed_data = transform_data_to_table_format(data, metric_name)
+    data_list = await get_disk_usage_status(instance_name, metric_name, days)
+    if data_list:
+        transformed_data = transform_data_to_table_format(data_list, metric_name)
         return transformed_data
     raise HTTPException(status_code=404, detail="Data not found")

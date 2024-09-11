@@ -97,7 +97,15 @@ GET {{baseUrl}}/command_status
 
 ### MySQL Disk Usage API
 GET {{baseUrl}}/disk_usage
+    ?instance_name=orderservice
+
+&metric=Binlog_cache_use&metric=Binlog_cache_disk_use
+
+###
+GET https://mgmt.py.devops.torder.tech/api/v1/disk_usage
     ?instance_name=orderservice&metric=Binlog_cache_use&metric=Binlog_cache_disk_use
+
+
 
 ### Multiple metrics
 GET {{baseUrl}}/disk_usage

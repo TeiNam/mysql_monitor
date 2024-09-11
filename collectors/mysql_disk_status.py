@@ -3,7 +3,6 @@ import pytz
 import logging
 from datetime import datetime
 from typing import Dict, Any, List, Optional
-from dataclasses import dataclass
 
 from modules.load_instance import load_instances_from_mongodb
 from modules.mongodb_connector import MongoDBConnector
@@ -21,14 +20,6 @@ MYSQL_METRICS = [
     'Created_tmp_files',
     'Created_tmp_disk_tables'
 ]
-
-@dataclass
-class MySQLMetric:
-    name: str
-    value: int
-    avg_for_hours: float
-    avg_for_seconds: float
-
 
 class MySQLDiskStatusMonitor:
     def __init__(self):
@@ -58,21 +49,25 @@ class MySQLDiskStatusMonitor:
             logger.error(f"Failed to execute query for {instance_name}: {e}")
             return None
 
-    def process_metrics(self, data: Dict[str, str], uptime: int) -> List[MySQLMetric]:
-        processed_data = []
+    def process_metrics(self, data: Dict[str, str], uptime: int) -> Dict[str, Dict[str, Any]]:
+        processed_data = {}
         for key, value in data.items():
             if key in MYSQL_METRICS:
                 value = int(value)
                 avg_for_hours = round(value / max(uptime / 3600, 1), 2)
                 avg_for_seconds = round(value / max(uptime, 1), 2)
-                processed_data.append(MySQLMetric(key, value, avg_for_hours, avg_for_seconds))
-        return sorted(processed_data, key=lambda x: x.value, reverse=True)
+                processed_data[key] = {
+                    "total": value,
+                    "avgForHours": avg_for_hours,
+                    "avgForSeconds": avg_for_seconds
+                }
+        return processed_data
 
-    async def store_metrics_to_mongodb(self, instance_name: str, metrics: List[MySQLMetric]):
+    async def store_metrics_to_mongodb(self, instance_name: str, metrics: Dict[str, Dict[str, Any]]):
         document = {
             'timestamp': datetime.now(pytz.utc),
             'instance_name': instance_name,
-            'metrics': [metric.__dict__ for metric in metrics]
+            'command_status': metrics
         }
         await self.status_collection.insert_one(document)
 

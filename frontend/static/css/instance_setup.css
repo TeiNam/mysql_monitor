@@ -32,16 +32,18 @@ body {
     gap: 20px;
     justify-content: space-between;
     width: 100%;
+    max-width: none;
 }
 
 .section {
-    flex: 1 1 calc(50% - 10px);
+    flex: 1 1 100%;
     min-width: 300px;
     background-color: #000000;
     border: 1px solid #333333;
     border-radius: 10px;
     padding: 20px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    overflow-x: auto;
 }
 
 /* Form Styles */
@@ -176,14 +178,6 @@ button:hover span:not(:nth-child(6)) {
 }
 
 /* Table Styles */
-.table-container {
-    width: 100%;
-    overflow-x: auto;
-    margin-bottom: 2em;
-    max-height: 400px;
-    overflow-y: auto;
-}
-
 table {
     width: 100%;
     border-collapse: separate;
@@ -219,43 +213,53 @@ tr:hover {
     background-color: #1a1a1a;
 }
 
+/* 테이블 레이아웃 수정 */
 #instanceTable {
     width: 100%;
+    min-width: 1000px;
     table-layout: fixed;
 }
 
 #instanceTable th, #instanceTable td {
+    padding: 8px 6px;
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 /* 각 열의 너비 조정 */
-#instanceTable th:nth-child(1), #instanceTable td:nth-child(1) { width: 4%; }  /* Env */
-#instanceTable th:nth-child(2), #instanceTable td:nth-child(2) { width: 5%; }  /* DB Type */
-#instanceTable th:nth-child(3), #instanceTable td:nth-child(3) { width: 8%; } /* Region */
-#instanceTable th:nth-child(4), #instanceTable td:nth-child(4) { width: 13%; } /* Cluster Name */
-#instanceTable th:nth-child(5), #instanceTable td:nth-child(5) { width: 18%; } /* Instance Name */
-#instanceTable th:nth-child(6), #instanceTable td:nth-child(6) { width: 38%; } /* Host - 너비 증가 */
-#instanceTable th:nth-child(7), #instanceTable td:nth-child(7) { width: 4%; }  /* Port */
-#instanceTable th:nth-child(8), #instanceTable td:nth-child(8) { width: 8%; }  /* Actions */
+#instanceTable th:nth-child(1), #instanceTable td:nth-child(1) { width: 15%; } /* Account */
+#instanceTable th:nth-child(2), #instanceTable td:nth-child(2) { width: 10%; } /* Region */
+#instanceTable th:nth-child(3), #instanceTable td:nth-child(3) { width: 15%; } /* Cluster Name */
+#instanceTable th:nth-child(4), #instanceTable td:nth-child(4) { width: 20%; } /* Instance Name */
+#instanceTable th:nth-child(5), #instanceTable td:nth-child(5) { width: 25%; } /* Host */
+#instanceTable th:nth-child(6), #instanceTable td:nth-child(6) { width: 5%; }  /* Port */
+#instanceTable th:nth-child(7), #instanceTable td:nth-child(7) { width: 10%; } /* Actions */
 
+/* 테이블 컨테이너 스크롤 유지 및 조정 */
+.table-container {
+    width: 100%;
+    overflow-x: auto;
+    margin-bottom: 2em;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+/* Delete 버튼 스타일 */
 .delete-cell {
     width: 80px;
     text-align: center;
 }
 
 .delete-button {
-    padding: 5px 10px;
+    padding: 4px 8px;
     background-color: #ff4c4c;
     color: white;
     border: none;
     border-radius: 4px;
     cursor: pointer;
     font-size: 0.8em;
-    width: 100%;
-    text-align: center;
-    transition: background-color 0.3s ease;
+    white-space: nowrap;
 }
 
 .delete-button:hover {
@@ -281,14 +285,32 @@ tr:hover {
     padding: 1em 2em;
 }
 
-/* 반응형 스타일 */
-@media (max-width: 768px) {
+/* 반응형 스타일 조정 */
+@media (max-width: 1200px) {
     .container {
         flex-direction: column;
     }
 
     .section {
-        flex: 1 1 100%;
+        width: 100%;
+    }
+
+    #instanceTable {
+        min-width: 800px;
+    }
+}
+
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+
+    #content {
+        width: 100%;
+    }
+
+    .form {
+        padding: 1em;
     }
 
     .field {
@@ -305,7 +327,7 @@ tr:hover {
     }
 
     #instanceTable {
-        min-width: 800px;
+        min-width: 600px;
     }
 }
 

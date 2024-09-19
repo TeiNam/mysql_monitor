@@ -11,8 +11,7 @@ async function loadInstanceList() {
 
         data.forEach(instance => {
             const row = tableBody.insertRow();
-            row.insertCell().textContent = instance.environment;
-            row.insertCell().textContent = instance.db_type;
+            row.insertCell().textContent = instance.account;
             row.insertCell().textContent = instance.region;
             row.insertCell().textContent = instance.cluster_name || '';
             row.insertCell().textContent = instance.instance_name;
@@ -31,6 +30,12 @@ async function loadInstanceList() {
         alert('Error loading Slow MySQL Instance list: ' + error.message);
     }
 }
+
+// 테이블 셀에 title 속성 추가
+const cells = document.querySelectorAll('#instanceTable td');
+cells.forEach(cell => {
+    cell.title = cell.textContent;
+});
 
 async function deleteInstance(instanceName) {
     if (!confirm('Are you sure you want to delete this Slow MySQL Instance?')) return;

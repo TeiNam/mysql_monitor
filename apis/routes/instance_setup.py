@@ -20,6 +20,7 @@ class SlowMySQLInstance(BaseModel):
     user: str
     password: str
     db: Optional[str] = Field(default="information_schema")
+    account: str
 
 class SlowMySQLInstanceResponse(BaseModel):
     environment: str
@@ -31,6 +32,7 @@ class SlowMySQLInstanceResponse(BaseModel):
     region: str
     user: str
     db: Optional[str]
+    account: Optional[str] = None  # account 필드를 옵셔널로 변경
 
 @router.get("/list_slow_instances/", response_model=List[SlowMySQLInstanceResponse])
 async def list_slow_instances():
@@ -41,7 +43,7 @@ async def list_slow_instances():
         return instances
     except Exception as e:
         logger.error(f"Error in list_slow_instances: {str(e)}")
-        return []  # 에러 발생 시 빈 리스트 반환
+        return []
 
 @router.post("/add_slow_instance/", status_code=201)
 async def add_slow_instance(slow_mysql_instance: SlowMySQLInstance):
@@ -59,7 +61,8 @@ async def add_slow_instance(slow_mysql_instance: SlowMySQLInstance):
         "region": slow_mysql_instance.region or "ap-northeast-2",
         "user": slow_mysql_instance.user,
         "password": encrypted_password,
-        "db": slow_mysql_instance.db
+        "db": slow_mysql_instance.db,
+        "account": slow_mysql_instance.account
     }
 
     result = await collection.update_one(

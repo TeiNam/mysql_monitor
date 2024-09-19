@@ -25,17 +25,17 @@ async function loadInstanceList() {
             deleteButton.className = 'delete-button';
             deleteCell.appendChild(deleteButton);
         });
+
+        // 테이블 셀에 title 속성 추가
+        const cells = document.querySelectorAll('#instanceTable td');
+        cells.forEach(cell => {
+            cell.title = cell.textContent;
+        });
     } catch (error) {
         console.error('Error:', error);
         alert('Error loading Slow MySQL Instance list: ' + error.message);
     }
 }
-
-// 테이블 셀에 title 속성 추가
-const cells = document.querySelectorAll('#instanceTable td');
-cells.forEach(cell => {
-    cell.title = cell.textContent;
-});
 
 async function deleteInstance(instanceName) {
     if (!confirm('Are you sure you want to delete this Slow MySQL Instance?')) return;
@@ -61,6 +61,12 @@ document.getElementById('slowMySQLForm').onsubmit = async (e) => {
 
     const formData = new FormData(e.target);
     const formProps = Object.fromEntries(formData);
+
+    // account 필드가 폼에 포함되어 있는지 확인
+    if (!formProps.account) {
+        alert('Account field is required');
+        return;
+    }
 
     try {
         const response = await fetch('/api/v1/instance_setup/add_slow_instance/', {

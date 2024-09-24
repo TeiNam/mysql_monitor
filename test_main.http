@@ -112,7 +112,7 @@ Accept: application/json
 
 ### Multiple metrics
 GET {{baseUrl}}/disk_usage
-    ?instance_name=dev-torder-orderservice-instance-1
+    ?instance_name=orderservice&metric=Binlog_cache_use&metric=Binlog_cache_disk_use
 
 ### Slow Query Stats API
 GET {{baseUrl}}/slow_query_stats

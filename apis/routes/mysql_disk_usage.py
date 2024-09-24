@@ -11,7 +11,7 @@ kst = pytz.timezone('Asia/Seoul')
 
 async def get_disk_usage_status(instance_name: str, metric_names: Optional[List[str]] = None,
                                 days: Optional[int] = None):
-    db = await MongoDBConnector.get_database()
+    db: AsyncIOMotorDatabase = await MongoDBConnector.get_database()
     collection = db[mongo_settings.MONGO_DISK_USAGE_COLLECTION]
     query = {'instance_name': instance_name}
 
@@ -20,10 +20,34 @@ async def get_disk_usage_status(instance_name: str, metric_names: Optional[List[
         start_date = end_date - timedelta(days=days)
         query['timestamp'] = {'$gte': start_date, '$lte': end_date}
 
-    projection = {'_id': 0, 'timestamp': 1, 'disk_status': 1}
-    cursor = collection.find(query, projection).sort('timestamp', -1)
+    projection = {'_id': 0, 'timestamp': 1}
 
-    return await cursor.to_list(length=None)
+    # metric_names가 제공된 경우, 해당 메트릭만 포함하도록 projection 수정
+    if metric_names:
+        for metric in metric_names:
+            projection[f'disk_status.{metric}'] = 1
+    else:
+        projection['disk_status'] = 1
+
+    cursor = collection.find(query, projection).sort('timestamp', 1)  # 1은 오름차순, -1은 내림차순
+
+    results = await cursor.to_list(length=None)
+
+    # Convert UTC timestamp to KST
+    for result in results:
+        if 'timestamp' in result:
+            result['timestamp'] = result['timestamp'].replace(tzinfo=pytz.UTC).astimezone(kst)
+
+    # metric_names가 제공된 경우, 결과를 재구성
+    if metric_names:
+        for result in results:
+            filtered_disk_status = {}
+            for metric in metric_names:
+                if 'disk_status' in result and metric in result['disk_status']:
+                    filtered_disk_status[metric] = result['disk_status'][metric]
+            result['disk_status'] = filtered_disk_status
+
+    return results
 
 def transform_data_to_table_format(data_list: List[dict], metric_names: Optional[List[str]] = None):
     transformed_data = []

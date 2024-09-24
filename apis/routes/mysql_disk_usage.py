@@ -34,8 +34,8 @@ def transform_data_to_table_format(data_list: List[dict], metric_names: Optional
             timestamp = timestamp + kst_delta
             timestamp = timestamp.strftime('%Y-%m-%d %H:%M:%S')
 
-        if "command_status" in data:
-            for metric, details in data["command_status"].items():
+        if "disk_status" in data:
+            for metric, details in data["disk_status"].items():
                 if metric_names and metric not in metric_names:
                     continue
                 row = {

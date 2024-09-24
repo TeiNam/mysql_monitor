@@ -105,6 +105,9 @@ GET {{baseUrl}}/disk_usage
 GET https://mgmt.py.devops.torder.tech/api/v1/disk_usage
     ?instance_name=orderservice&metric=Binlog_cache_use&metric=Binlog_cache_disk_use
 
+### 특정 메트릭과 기간을 함께 지정하여 조회
+GET https://mgmt.py.devops.torder.tech/api/v1/disk_usage?instance_name=your_instance_name&metric=Binlog_cache_use&metric=Created_tmp_tables&days=3
+Accept: application/json
 
 
 ### Multiple metrics

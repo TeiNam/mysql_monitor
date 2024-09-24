@@ -2,9 +2,8 @@ import asyncio
 import pytz
 import logging
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
 
-from modules.load_instance import load_instances_from_mongodb
 from modules.mongodb_connector import MongoDBConnector
 from modules.mysql_connector import MySQLConnector
 from configs.mongo_conf import mongo_settings
@@ -22,31 +21,30 @@ MYSQL_METRICS = [
 ]
 
 class MySQLDiskStatusMonitor:
-    def __init__(self):
+    def __init__(self, mysql_connector: MySQLConnector):
         self.mongodb = None
         self.status_collection = None
-        self.mysql_connectors: Dict[str, MySQLConnector] = {}
+        self.mysql_connector = mysql_connector
+        self._stop_event = asyncio.Event()
+
+    async def stop(self):
+        self._stop_event.set()
+        logger.info(f"Stopping MySQLDiskStatusMonitor for {self.mysql_connector.instance_name}")
 
     async def initialize(self):
-        await MongoDBConnector.initialize()
         self.mongodb = await MongoDBConnector.get_database()
         self.status_collection = self.mongodb[mongo_settings.MONGO_DISK_USAGE_COLLECTION]
+        logger.info(f"Initialized MySQLDiskStatusMonitor for {self.mysql_connector.instance_name}")
 
-        instances = await load_instances_from_mongodb()
-        for instance in instances:
-            instance_name = instance['instance_name']
-            self.mysql_connectors[instance_name] = MySQLConnector("disk_status")
-            await self.mysql_connectors[instance_name].create_pool(instance, pool_size=1)
-
-    async def execute_mysql_query(self, instance_name: str, query: str, single_row: bool = False) -> Optional[Any]:
+    async def execute_mysql_query(self, query: str, single_row: bool = False) -> Optional[Any]:
         try:
-            result = await self.mysql_connectors[instance_name].execute_query(instance_name, query)
+            result = await self.mysql_connector.execute_query(query)
             if single_row:
                 return int(result[0]['Value']) if result else 0
             else:
                 return {row['Variable_name']: row['Value'] for row in result}
         except Exception as e:
-            logger.error(f"Failed to execute query for {instance_name}: {e}")
+            logger.error(f"Failed to execute query for {self.mysql_connector.instance_name}: {e}")
             return None
 
     def process_metrics(self, data: Dict[str, str], uptime: int) -> Dict[str, Dict[str, Any]]:
@@ -63,53 +61,39 @@ class MySQLDiskStatusMonitor:
                 }
         return processed_data
 
-    async def store_metrics_to_mongodb(self, instance_name: str, metrics: Dict[str, Dict[str, Any]]):
+    async def store_metrics_to_mongodb(self, metrics: Dict[str, Dict[str, Any]]):
         document = {
             'timestamp': datetime.now(pytz.utc),
-            'instance_name': instance_name,
-            'command_status': metrics
+            'instance_name': self.mysql_connector.instance_name,
+            'disk_status': metrics
         }
         await self.status_collection.insert_one(document)
 
-    async def fetch_and_save_instance_data(self, instance: Dict[str, Any]):
-        instance_name = instance['instance_name']
-        uptime = await self.execute_mysql_query(instance_name, "SHOW GLOBAL STATUS LIKE 'Uptime';", True)
+    async def fetch_and_save_instance_data(self):
+        uptime = await self.execute_mysql_query("SHOW GLOBAL STATUS LIKE 'Uptime';", True)
         if uptime is None:
-            logger.warning(f"Could not retrieve uptime for {instance_name}")
+            logger.warning(f"Could not retrieve uptime for {self.mysql_connector.instance_name}")
             return
 
         raw_status = {}
         for metric in MYSQL_METRICS:
             query = f"SHOW GLOBAL STATUS LIKE '{metric}';"
-            result = await self.execute_mysql_query(instance_name, query)
+            result = await self.execute_mysql_query(query)
             if result:
                 raw_status.update(result)
 
         if not raw_status:
-            logger.warning(f"Could not retrieve global status for {instance_name}")
+            logger.warning(f"Could not retrieve global status for {self.mysql_connector.instance_name}")
             return
 
         processed_metrics = self.process_metrics(raw_status, uptime)
-        await self.store_metrics_to_mongodb(instance_name, processed_metrics)
+        await self.store_metrics_to_mongodb(processed_metrics)
+        logger.info(f"Disk status data saved for {self.mysql_connector.instance_name}")
 
     async def run(self):
         try:
-            await self.initialize()
-            instances = await load_instances_from_mongodb()
-
-            tasks = [self.fetch_and_save_instance_data(instance) for instance in instances]
-            await asyncio.gather(*tasks)
-
+            logger.info(f"Starting disk status collection for {self.mysql_connector.instance_name}")
+            await self.fetch_and_save_instance_data()
+            logger.info(f"Disk status collection completed for {self.mysql_connector.instance_name}")
         except Exception as e:
-            logger.error(f"An error occurred: {e}")
-        finally:
-            for instance_name, connector in self.mysql_connectors.items():
-                await connector.close_pool(instance_name)
-
-async def run_selected_metrics_status():
-    monitor = MySQLDiskStatusMonitor()
-    await monitor.run()
-
-
-if __name__ == '__main__':
-    asyncio.run(run_selected_metrics_status())
+            logger.error(f"An error occurred during disk status collection for {self.mysql_connector.instance_name}: {e}")

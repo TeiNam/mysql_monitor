@@ -13,13 +13,14 @@ DEFAULT_POOL_SIZE = 1
 class MySQLConnector:
     def __init__(self, collector_name: str):
         self.collector_name = collector_name
-        self.pools: Dict[str, Any] = {}
+        self.pool: Any = None
+        self.instance_name: str = None
 
     async def create_pool(self, instance_info: Dict[str, Any], pool_size: int = DEFAULT_POOL_SIZE) -> None:
         """Create a connection pool for a MySQL instance."""
         try:
             decrypted_password = decrypt_password(instance_info['password'])
-            self.pools[instance_info['instance_name']] = await create_pool(
+            self.pool = await create_pool(
                 host=instance_info['host'],
                 port=instance_info['port'],
                 user=instance_info['user'],
@@ -27,57 +28,56 @@ class MySQLConnector:
                 db=instance_info['db'],
                 maxsize=pool_size
             )
-            logger.info(f"Created MySQL connection pool for {self.collector_name} - {instance_info['instance_name']} with max size {pool_size}")
+            self.instance_name = instance_info['instance_name']
+            logger.info(f"Created MySQL connection pool for {self.collector_name} - {self.instance_name} with max size {pool_size}")
         except Exception as e:
             logger.error(f"Error creating MySQL connection pool for {self.collector_name} - {instance_info['instance_name']}: {str(e)}")
             raise
 
-    async def execute_query(self, instance_name: str, query: str, params: Tuple = None) -> List[Dict[str, Any]]:
+    async def execute_query(self, query: str, params: Tuple = None) -> List[Dict[str, Any]]:
         """Execute a query on the MySQL instance."""
-        if instance_name not in self.pools:
-            raise ValueError(f"No connection pool found for {instance_name} in {self.collector_name}")
+        if not self.pool:
+            raise ValueError(f"No connection pool found for {self.collector_name}")
 
         try:
-            async with self.pools[instance_name].acquire() as conn:
+            async with self.pool.acquire() as conn:
                 async with conn.cursor(asyncmy.cursors.DictCursor) as cursor:
-                    await cursor.execute(query, params)
+                    if params:
+                        await cursor.execute(query, params)
+                    else:
+                        await cursor.execute(query)
                     return await cursor.fetchall()
         except Exception as e:
-            logger.error(f"Error executing query for {self.collector_name} - {instance_name}: {str(e)}")
+            logger.error(f"Error executing query for {self.collector_name} - {self.instance_name}: {str(e)}")
+            logger.error(f"Query: {query}")
+            logger.error(f"Params: {params}")
             raise
 
-    async def close_pool(self, instance_name: str) -> None:
-        """Close the connection pool for a specific instance."""
-        if instance_name not in self.pools:
-            logger.warning(f"No connection pool found for {instance_name} in {self.collector_name}")
+    async def close_pool(self) -> None:
+        """Close the connection pool."""
+        if not self.pool:
+            logger.warning(f"No connection pool found for {self.collector_name}")
             return
 
         try:
-            pool = self.pools[instance_name]
-            pool.close()
-            await pool.wait_closed()
-            del self.pools[instance_name]
-            logger.info(f"Closed MySQL connection pool for {self.collector_name} - {instance_name}")
+            self.pool.close()
+            await self.pool.wait_closed()
+            logger.info(f"Closed MySQL connection pool for {self.collector_name} - {self.instance_name}")
         except Exception as e:
-            logger.error(f"Error closing MySQL connection pool for {self.collector_name} - {instance_name}: {str(e)}")
+            logger.error(f"Error closing MySQL connection pool for {self.collector_name} - {self.instance_name}: {str(e)}")
             raise
 
-    async def close_all_pools(self) -> None:
-        """Close all connection pools for this collector."""
-        for instance_name in list(self.pools.keys()):
-            await self.close_pool(instance_name)
-
-    async def set_database(self, instance_name: str, database: str) -> None:
-        """Set the database for a specific instance."""
-        if instance_name not in self.pools:
-            raise ValueError(f"No connection pool found for {instance_name} in {self.collector_name}")
+    async def set_database(self, database: str) -> None:
+        """Set the database for the instance."""
+        if not self.pool:
+            raise ValueError(f"No connection pool found for {self.collector_name}")
 
         try:
-            async with self.pools[instance_name].acquire() as conn:
+            async with self.pool.acquire() as conn:
                 await conn.select_db(database)
-            logger.info(f"Set database to {database} for {self.collector_name} - {instance_name}")
+            logger.info(f"Set database to {database} for {self.collector_name} - {self.instance_name}")
         except Exception as e:
-            logger.error(f"Error setting database for {self.collector_name} - {instance_name}: {str(e)}")
+            logger.error(f"Error setting database for {self.collector_name} - {self.instance_name}: {str(e)}")
             raise
 
     async def execute_query_with_new_connection(self, connection_params: dict, query: str):

@@ -101,5 +101,5 @@ async def run_rds_instance_collector(profile_names):
 
 if __name__ == "__main__":
     sso_session_name = 'torder'
-    profile_names = ['AdministratorAccess-488659748805', 'AdministratorAccess-578868370045', 'AdministratorAccess-790631726648','AdministratorAccess-732250966717','AdministratorAccess-518026839586','AdministratorAccess-897374448634','AdministratorAccess-708010261224','AdministratorAccess-058264293746','AdministratorAccess-637423179433']  # 사용할 프로필 이름들을 여기에 나열하세요
+    profile_names = []  # 사용할 프로필 이름들을 여기에 나열하세요
     asyncio.run(run_rds_instance_collector(profile_names))

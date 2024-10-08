@@ -116,6 +116,6 @@ async def run_rds_instance_collector(account_ids, role_name):
     await MongoDBConnector.close()
 
 if __name__ == "__main__":
-    role_name = 'EC2RDSAccessRole'  # 각 계정에 생성한 역할의 이름
+    role_name = 'AdministratorAccess'  # 각 계정에 생성한 역할의 이름
     account_ids = ['488659748805', '578868370045', '790631726648', '732250966717', '518026839586', '897374448634', '708010261224', '058264293746', '637423179433']
     asyncio.run(run_rds_instance_collector(account_ids, role_name))

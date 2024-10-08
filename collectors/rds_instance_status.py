@@ -16,19 +16,39 @@ LOG_FORMAT = os.getenv('LOG_FORMAT', '%(asctime)s - %(name)s - %(levelname)s - %
 logging.basicConfig(level=getattr(logging, LOG_LEVEL), format=LOG_FORMAT)
 logger = logging.getLogger(__name__)
 
+def assume_role(account_id, role_name):
+    sts_client = boto3.client('sts')
+    role_arn = f'arn:aws:iam::{account_id}:role/{role_name}'
+    try:
+        assumed_role_object = sts_client.assume_role(
+            RoleArn=role_arn,
+            RoleSessionName="AssumeRoleSession"
+        )
+        credentials = assumed_role_object['Credentials']
+        return boto3.Session(
+            aws_access_key_id=credentials['AccessKeyId'],
+            aws_secret_access_key=credentials['SecretAccessKey'],
+            aws_session_token=credentials['SessionToken']
+        )
+    except ClientError as e:
+        logger.error(f"Error assuming role for account {account_id}: {e}")
+        return None
 
-def create_sessions(profile_names):
+def create_sessions(account_ids, role_name):
     sessions = {}
-    for profile in profile_names:
+    default_session = boto3.Session()
+    for account_id in account_ids:
         try:
-            session = boto3.Session(profile_name=profile)
-            # SSO 자격 증명이 유효한지 확인
-            sts = session.client('sts')
-            sts.get_caller_identity()
-            sessions[profile] = session
-            logger.info(f"Successfully created session for profile: {profile}")
+            if account_id == default_session.client('sts').get_caller_identity()['Account']:
+                sessions[account_id] = default_session
+                logger.info(f"Using default session for account: {account_id}")
+            else:
+                session = assume_role(account_id, role_name)
+                if session:
+                    sessions[account_id] = session
+                    logger.info(f"Successfully assumed role for account: {account_id}")
         except Exception as e:
-            logger.error(f"Error creating session for profile {profile}: {e}")
+            logger.error(f"Error creating session for account {account_id}: {e}")
     return sessions
 
 
@@ -79,27 +99,23 @@ async def save_to_mongodb(instances, account_id):
         f"Saved {len(instances)} RDS instances for account {account_id} to MongoDB collection: {AWS_RDS_INSTANCE_ALL_STAT_COLLECTION}")
 
 
-async def run_rds_instance_collector(profile_names):
+async def run_rds_instance_collector(account_ids, role_name):
     await MongoDBConnector.initialize()
 
-    sessions = create_sessions(profile_names)
+    sessions = create_sessions(account_ids, role_name)
 
-    for profile, session in sessions.items():
+    for account_id, session in sessions.items():
         try:
-            sts_client = session.client('sts')
-            account_id = sts_client.get_caller_identity()['Account']
-
             instances = await get_rds_instances(session, account_id)
             await save_to_mongodb(instances, account_id)
 
-            logger.info(f"Completed data collection for profile: {profile}, account: {account_id}")
+            logger.info(f"Completed data collection for account: {account_id}")
         except Exception as e:
-            logger.error(f"Error processing profile {profile}: {e}")
+            logger.error(f"Error processing account {account_id}: {e}")
 
     await MongoDBConnector.close()
 
-
 if __name__ == "__main__":
-    sso_session_name = ''
-    profile_names = []  # 사용할 프로필 이름들을 여기에 나열하세요
-    asyncio.run(run_rds_instance_collector(profile_names))
+    role_name = 'EC2RDSAccessRole'  # 각 계정에 생성한 역할의 이름
+    account_ids = ['488659748805', '578868370045', '790631726648', '732250966717', '518026839586', '897374448634', '708010261224', '058264293746', '637423179433']
+    asyncio.run(run_rds_instance_collector(account_ids, role_name))

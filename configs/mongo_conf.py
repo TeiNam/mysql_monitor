@@ -17,6 +17,7 @@ class MongoSettings(BaseSettings):
     MONGO_COM_STATUS_COLLECTION: str = os.getenv("MONGO_COM_STATUS_COLLECTION", "mysql_com_status")
     MONGO_RDS_INSTANCE_ALL_STAT_COLLECTION: str = os.getenv("MONGO_RDS_INSTANCE_ALL_STAT_COLLECTION","aws_rds_instance_all_stat")
     MONGO_DISK_USAGE_COLLECTION: str = os.getenv("MONGO_DISK_USAGE_COLLECTION", "mysql_disk_usage")
+    MONGO_SAVE_PROME_COLLECTION: str = os.getenv("MONGO_SAVE_PROME_COLLECTION", "prome_daily")
 
 
     class Config:

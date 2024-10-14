@@ -5,6 +5,7 @@ import traceback
 from modules.mongodb_connector import MongoDBConnector
 from modules.time_utils import get_kst_time
 from configs.app_conf import app_settings
+from configs.report_conf import report_settings
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import Response, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -18,6 +19,11 @@ from .routes.slow_query_explain import router as slow_query_explain_router
 from .routes.mysql_com_status import router as mysql_com_status_router
 from .routes.mysql_disk_usage import router as mysql_disk_usage_router
 from .routes.slow_query_stat import router as slow_query_stat_router
+
+from report_tools import instance_statistics
+from report_tools import report_generator
+from report_tools.scheduler import start_scheduler
+import threading
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -50,14 +56,21 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory=app_settings.STATIC_FILES_DIR), name="static")
 templates = Jinja2Templates(directory=app_settings.TEMPLATES_DIR)
 
+# FastAPI 앱 설정 후
+threading.Thread(target=start_scheduler, daemon=True).start()
+
 app.include_router(instance_setup_router, prefix="/api/v1/instance_setup", tags=["Instance Setup"])
 app.include_router(slow_queries_router, prefix="/api/v1/query_tool", tags=["Slow Queries"])
 app.include_router(slow_query_explain_router, prefix="/api/v1/query_tool", tags=["Query Explain"])
 app.include_router(mysql_com_status_router, prefix="/api/v1", tags=["MySQL Command Status"])
 app.include_router(mysql_disk_usage_router, prefix="/api/v1", tags=["MySQL Disk Usage"])
 app.include_router(slow_query_stat_router, prefix="/api/v1", tags=["Slow Query Stats"])
+app.include_router(instance_statistics.router, prefix="/api/v1/reports", tags=["Instance Statistics"])
+app.include_router(report_generator.router, prefix="/api/v1/reports", tags=["Report Generator"])
 
-# ... (나머지 코드는 그대로 유지)
+
+# 기본 리포트 디렉토리 생성
+os.makedirs(report_settings.BASE_REPORT_DIR, exist_ok=True)
 
 @app.get("/favicon.ico")
 async def get_favicon():

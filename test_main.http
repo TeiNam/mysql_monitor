@@ -122,3 +122,40 @@ GET {{baseUrl}}/disk_usage
     ?instance_name=dev-torder-orderservice-instance-1
     &metric=Created_tmp_tables
     &metric=Created_tmp_disk_tables
+
+
+### instance_statistics.py 테스트
+
+# 일일 인스턴스 통계 가져오기
+GET http://localhost:8000/api/v1/reports/daily-instance-statistics
+Accept: application/json
+
+###
+
+# 월간 인스턴스 통계 가져오기
+GET http://localhost:8000/api/v1/reports/monthly-instance-statistics?year=2024&month=09
+Accept: application/json
+
+### prometheus_daily_metrics.py 테스트
+
+# 일일 메트릭 수집하기 (날짜 지정)
+GET http://localhost:8000/api/v1/collect-daily-metrics?date=2024-10-14
+Accept: application/json
+
+###
+
+# 일일 메트릭 수집하기 (날짜 미지정, 어제 날짜로 수집)
+GET http://localhost:8000/api/v1/collect-daily-metrics
+Accept: application/json
+
+### report_generator.py 테스트
+
+# 통합 리포트 생성하기 (날짜 범위 지정)
+GET http://localhost:8000/api/v1/reports/generate-integrated-report?start_date=2024-10-01&end_date=2024-10-13
+Accept: application/json
+
+###
+
+# 통합 리포트 생성하기 (날짜 범위 미지정, 최근 7일간의 리포트 생성)
+GET http://localhost:8000/api/v1/reports/generate-integrated-report
+Accept: application/json

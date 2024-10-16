@@ -22,6 +22,9 @@ from .routes.slow_query_stat import router as slow_query_stat_router
 
 from report_tools import instance_statistics
 from report_tools import report_generator
+from report_tools import prometheus_daily_metrics
+from report_tools import report_downloader
+from report_tools import cleanup
 from report_tools.scheduler import start_scheduler
 import threading
 
@@ -67,6 +70,9 @@ app.include_router(mysql_disk_usage_router, prefix="/api/v1", tags=["MySQL Disk 
 app.include_router(slow_query_stat_router, prefix="/api/v1", tags=["Slow Query Stats"])
 app.include_router(instance_statistics.router, prefix="/api/v1/reports", tags=["Instance Statistics"])
 app.include_router(report_generator.router, prefix="/api/v1/reports", tags=["Report Generator"])
+app.include_router(prometheus_daily_metrics.router, prefix="/api/v1/prometheus", tags=["Prometheus Metrics"])
+app.include_router(report_downloader.router, prefix="/api/v1/reports", tags=["Report Downloader"])
+app.include_router(cleanup.router, prefix="/api/v1/reports", tags=["Cleanup"])
 
 
 # 기본 리포트 디렉토리 생성
@@ -96,6 +102,10 @@ async def sql_explain(request: Request):
 @app.get("/instance-setup", tags=["UI"])
 async def instance_setup(request: Request):
     return templates.TemplateResponse("instance_setup.html", {"request": request})
+
+@app.get("/report-download", tags=["UI"])
+async def report_download(request: Request):
+    return templates.TemplateResponse("report_download.html", {"request": request})
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc):

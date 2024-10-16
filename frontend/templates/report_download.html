@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Generation and Download</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/report_download.css') }}">
+</head>
+<body>
+    <div id="content">
+        <h1 id="heading">Report Generation and Download</h1>
+        <div class="section">
+            <form id="generateForm" class="form">
+                <h2>Generate Report</h2>
+                <div class="field">
+                    <label for="startDate">Start Date:</label>
+                    <input type="date" id="startDate" required>
+                </div>
+                <div class="field">
+                    <label for="endDate">End Date:</label>
+                    <input type="date" id="endDate" required>
+                </div>
+                <button type="submit">Generate Report</button>
+            </form>
+        </div>
+        <div class="section">
+            <form id="downloadForm" class="form">
+                <h2>Download Report</h2>
+                <div class="field">
+                    <label for="reportDate">Report Date:</label>
+                    <input type="date" id="reportDate" required>
+                </div>
+                <button type="submit">Download Report</button>
+            </form>
+        </div>
+    </div>
+    <div id="loadingOverlay" class="overlay">
+        <div class="loader"></div>
+        <p>Generating report...</p>
+    </div>
+    <div id="completionModal" class="modal">
+        <div class="modal-content">
+            <h2>Report Generation Complete</h2>
+            <p id="completionMessage"></p>
+            <button id="closeModal">OK</button>
+        </div>
+    </div>
+    <footer>
+        <p>Created by <span id="author"> DBRE Tei, Team DevOps, t'order</span></p>
+        <p>&copy; <span id="copyright-year">2024</span> All rights reserved.</p>
+    </footer>
+    <script src="{{ url_for('static', path='/js/report_download.js') }}"></script>
+</body>
+</html>

@@ -1,24 +1,19 @@
-from fastapi import APIRouter, HTTPException, Query
-from motor.motor_asyncio import AsyncIOMotorDatabase
-from datetime import datetime, timedelta
 import os
-import matplotlib.pyplot as plt
+import asyncio
+import aiofiles
+from fastapi import APIRouter, HTTPException, Query
+from datetime import datetime, timedelta
 from typing import Dict, Any, List
-import httpx
-from modules.mongodb_connector import MongoDBConnector
-from configs.mongo_conf import mongo_settings
-from configs.openai_conf import openai_settings
+import structlog
 from configs.report_conf import report_settings
+from configs.openai_conf import openai_settings
 from openai import AsyncOpenAI
+from functools import lru_cache
+from .data_retrieval import get_cached_instance_statistics, get_cached_prometheus_data
+from .graph_generation import create_instance_graphs, create_prometheus_graphs
 
-import logging
-
-# 로깅 설정
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
+logger = structlog.get_logger()
 router = APIRouter()
-
 client = AsyncOpenAI(api_key=openai_settings.OPENAI_API_KEY)
 
 def validate_date_format(date_string: str) -> bool:
@@ -28,126 +23,13 @@ def validate_date_format(date_string: str) -> bool:
     except ValueError:
         return False
 
-def validate_instance_data(data: Dict[str, Any]) -> bool:
-    required_keys = ['total_instances', 'dev_instances', 'prd_instances', 'account_count', 'region_count', 'accounts', 'regions', 'instance_classes']
-    return all(key in data for key in required_keys)
+@lru_cache(maxsize=128)
+def get_cached_instance_statistics_wrapper():
+    return get_cached_instance_statistics()
 
-def validate_prometheus_data(data: List[Dict[str, Any]]) -> bool:
-    if not data:
-        return False
-    required_keys = ['date', 'metrics']
-    return all(all(key in item for key in required_keys) for item in data)
-
-
-async def get_instance_statistics() -> Dict[str, Any]:
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(report_settings.INSTANCE_STATS_API_URL, timeout=10.0)
-            response.raise_for_status()
-            data = response.json()
-
-        if not validate_instance_data(data):
-            raise ValueError("Invalid instance statistics data format")
-
-        return data
-    except Exception as e:
-        logger.error(f"Error fetching instance statistics: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch instance statistics: {str(e)}")
-
-async def get_prometheus_data(start_date: str, end_date: str) -> List[Dict[str, Any]]:
-    try:
-        db: AsyncIOMotorDatabase = await MongoDBConnector.get_database()
-        collection = db[mongo_settings.MONGO_SAVE_PROME_COLLECTION]
-
-        data = await collection.find({"date": {"$gte": start_date, "$lte": end_date}}).sort("date", 1).to_list(None)
-
-        if not validate_prometheus_data(data):
-            raise ValueError("Invalid Prometheus data format")
-
-        return data
-    except Exception as e:
-        logger.error(f"Error fetching Prometheus data: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch Prometheus data: {str(e)}")
-
-def create_instance_graphs(data: Dict[str, Any], date: str, report_dir: str):
-    # 계정별 그래프
-    plt.figure(figsize=(10, 6))
-    accounts = [account['account_id'] for account in data['accounts']]
-    instance_counts = [account['instance_count'] for account in data['accounts']]
-    plt.bar(accounts, instance_counts)
-    plt.title("Instances by Account")
-    plt.xlabel("Account ID")
-    plt.ylabel("Instance Count")
-    plt.xticks(rotation=45, ha='right')
-    plt.tight_layout()
-    account_graph_path = os.path.join(report_dir, f"account_graph_{date}.png")
-    plt.savefig(account_graph_path)
-    plt.close()
-
-    # 리전별 그래프
-    plt.figure(figsize=(8, 6))
-    regions = [region['region'] for region in data['regions']]
-    region_counts = [region['instance_count'] for region in data['regions']]
-    plt.pie(region_counts, labels=regions, autopct='%1.1f%%', startangle=90)
-    plt.title("Instances by Region")
-    plt.axis('equal')
-    region_graph_path = os.path.join(report_dir, f"region_graph_{date}.png")
-    plt.savefig(region_graph_path)
-    plt.close()
-
-    # 인스턴스 클래스별 그래프
-    plt.figure(figsize=(12, 6))
-    classes = list(data['instance_classes'].keys())
-    class_counts = list(data['instance_classes'].values())
-    plt.bar(classes, class_counts)
-    plt.title("Instance Class Distribution")
-    plt.xlabel("Instance Class")
-    plt.ylabel("Count")
-    plt.xticks(rotation=45, ha='right')
-    plt.tight_layout()
-    class_graph_path = os.path.join(report_dir, f"class_graph_{date}.png")
-    plt.savefig(class_graph_path)
-    plt.close()
-
-    return account_graph_path, region_graph_path, class_graph_path
-
-def create_prometheus_graphs(data: List[Dict[str, Any]], start_date: str, end_date: str, report_dir: str):
-    # CPU 사용률 그래프
-    plt.figure(figsize=(12, 6))
-    for instance in data[0]['metrics']:
-        dates = [d['date'] for d in data]
-        cpu_usage = [d['metrics'][instance]['rds_cpu_usage_percent_average']['avg'] for d in data]
-        plt.plot(dates, cpu_usage, label=instance)
-    plt.title("Average CPU Usage by Instance")
-    plt.xlabel("Date")
-    plt.ylabel("CPU Usage (%)")
-    plt.legend()
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-    cpu_graph_path = os.path.join(report_dir, f"cpu_usage_{start_date}_{end_date}.png")
-    plt.savefig(cpu_graph_path)
-    plt.close()
-
-
-    # IOPS 그래프
-    plt.figure(figsize=(12, 6))
-    for instance in data[0]['metrics']:
-        dates = [d['date'] for d in data]
-        read_iops = [d['metrics'][instance]['rds_read_iops_average']['avg'] for d in data]
-        write_iops = [d['metrics'][instance]['rds_write_iops_average']['avg'] for d in data]
-        plt.plot(dates, read_iops, label=f"{instance} Read")
-        plt.plot(dates, write_iops, label=f"{instance} Write")
-    plt.title("Average Read and Write IOPS by Instance")
-    plt.xlabel("Date")
-    plt.ylabel("IOPS")
-    plt.legend()
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-    iops_graph_path = os.path.join(report_dir, f"iops_{start_date}_{end_date}.png")
-    plt.savefig(iops_graph_path)
-    plt.close()
-
-    return cpu_graph_path, iops_graph_path
+@lru_cache(maxsize=128)
+def get_cached_prometheus_data_wrapper(start_date: str, end_date: str):
+    return get_cached_prometheus_data(start_date, end_date)
 
 async def get_chatgpt_analysis(instance_data: Dict[str, Any], prometheus_data: List[Dict[str, Any]]) -> str:
     instance_summary = f"""
@@ -204,8 +86,7 @@ async def get_chatgpt_analysis(instance_data: Dict[str, Any], prometheus_data: L
         response = await client.chat.completions.create(
             model=openai_settings.OPENAI_MODEL,
             messages=[
-                {"role": "system",
-                 "content": "당신은 AWS RDS 인스턴스 통계 및 성능 데이터를 객관적으로 요약하는 분석가입니다. 오직 관찰된 사실만을 보고하고, 의견이나 제안은 제시하지 않습니다."},
+                {"role": "system", "content": "당신은 AWS RDS 인스턴스 통계 및 성능 데이터를 객관적으로 요약하는 분석가입니다. 오직 관찰된 사실만을 보고하고, 의견이나 제안은 제시하지 않습니다."},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=openai_settings.OPENAI_MAX_TOKENS,
@@ -215,10 +96,10 @@ async def get_chatgpt_analysis(instance_data: Dict[str, Any], prometheus_data: L
     except Exception as e:
         return f"ChatGPT 분석 생성 중 오류 발생: {str(e)}"
 
-def create_integrated_report(instance_data: Dict[str, Any], prometheus_data: List[Dict[str, Any]],
-                             date: str, start_date: str, end_date: str,
-                             account_graph: str, region_graph: str, class_graph: str,
-                             cpu_graph: str, iops_graph: str, analysis: str) -> str:
+async def create_integrated_report(instance_data: Dict[str, Any], prometheus_data: List[Dict[str, Any]],
+                                   date: str, start_date: str, end_date: str,
+                                   account_graph: str, region_graph: str, class_graph: str,
+                                   cpu_graph: str, iops_graph: str, analysis: str) -> str:
     report = f"# 통합 RDS 인스턴스 및 성능 분석 리포트 ({start_date} ~ {end_date})\n\n"
 
     # 1. 인스턴스 통계 요약
@@ -280,7 +161,6 @@ def create_integrated_report(instance_data: Dict[str, Any], prometheus_data: Lis
 
     return report
 
-
 @router.get("/generate-integrated-report")
 async def generate_integrated_report(
     start_date: str = Query(None, description="Start date in YYYY-MM-DD format"),
@@ -295,8 +175,14 @@ async def generate_integrated_report(
         if not validate_date_format(start_date) or not validate_date_format(end_date):
             raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
 
-        instance_data = await get_instance_statistics()
-        prometheus_data = await get_prometheus_data(start_date, end_date)
+        # 수정된 부분: 래퍼 함수를 사용하여 코루틴을 얻습니다
+        instance_data_coro = get_cached_instance_statistics_wrapper()
+        prometheus_data_coro = get_cached_prometheus_data_wrapper(start_date, end_date)
+
+        # gather를 사용하여 코루틴을 실행합니다
+        instance_data, prometheus_data = await asyncio.gather(
+            instance_data_coro, prometheus_data_coro
+        )
 
         if not prometheus_data:
             raise HTTPException(status_code=404, detail="No data found for the specified date range")
@@ -305,12 +191,14 @@ async def generate_integrated_report(
         report_dir = report_settings.get_report_dir(report_date)
         os.makedirs(report_dir, exist_ok=True)
 
-        account_graph, region_graph, class_graph = create_instance_graphs(instance_data, end_date, report_dir)
-        cpu_graph, iops_graph = create_prometheus_graphs(prometheus_data, start_date, end_date, report_dir)
+        # 병렬로 그래프 생성 및 분석 수행
+        (account_graph, region_graph, class_graph), (cpu_graph, iops_graph), analysis = await asyncio.gather(
+            create_instance_graphs(instance_data, end_date, report_dir),
+            create_prometheus_graphs(prometheus_data, start_date, end_date, report_dir),
+            get_chatgpt_analysis(instance_data, prometheus_data)
+        )
 
-        analysis = await get_chatgpt_analysis(instance_data, prometheus_data)
-
-        report = create_integrated_report(
+        report = await create_integrated_report(
             instance_data, prometheus_data,
             end_date, start_date, end_date,
             account_graph, region_graph, class_graph,
@@ -320,14 +208,20 @@ async def generate_integrated_report(
         filename = f"integrated_rds_report_{start_date}_{end_date}.md"
         file_path = os.path.join(report_dir, filename)
 
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(report)
+        async with aiofiles.open(file_path, "w", encoding="utf-8") as f:
+            await f.write(report)
 
-        logger.info(f"Report generated successfully: {file_path}")
+        logger.info("Report generated successfully", file_path=file_path)
         return {"message": "Integrated RDS report generated successfully", "file_path": file_path}
 
     except HTTPException as he:
-        raise he
+        logger.error("HTTP exception occurred", status_code=he.status_code, detail=he.detail)
+        raise
     except Exception as e:
-        logger.error(f"Error generating report: {str(e)}", exc_info=True)
+        logger.exception("Unexpected error during report generation", error=str(e))
         raise HTTPException(status_code=500, detail=f"Failed to generate report: {str(e)}")
+
+# 캐시 무효화 함수
+async def invalidate_caches():
+    get_cached_instance_statistics_wrapper.cache_clear()
+    get_cached_prometheus_data_wrapper.cache_clear()

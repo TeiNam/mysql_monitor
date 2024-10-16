@@ -139,10 +139,12 @@ Accept: application/json
 ### prometheus_daily_metrics.py 테스트
 
 # 일일 메트릭 수집하기 (날짜 지정)
-GET http://localhost:8000/api/v1/collect-daily-metrics?date=2024-10-14
+GET http://localhost:8000/api/v1/prometheus/collect-daily-metrics?date=2024-10-15
 Accept: application/json
 
 ###
+/api/v1/prometheus/collect-daily-metrics
+
 
 # 일일 메트릭 수집하기 (날짜 미지정, 어제 날짜로 수집)
 GET http://localhost:8000/api/v1/collect-daily-metrics
@@ -151,7 +153,7 @@ Accept: application/json
 ### report_generator.py 테스트
 
 # 통합 리포트 생성하기 (날짜 범위 지정)
-GET http://localhost:8000/api/v1/reports/generate-integrated-report?start_date=2024-10-01&end_date=2024-10-13
+GET http://localhost:8000/api/v1/reports/generate-integrated-report?start_date=2024-10-01&end_date=2024-10-15
 Accept: application/json
 
 ###
@@ -159,3 +161,11 @@ Accept: application/json
 # 통합 리포트 생성하기 (날짜 범위 미지정, 최근 7일간의 리포트 생성)
 GET http://localhost:8000/api/v1/reports/generate-integrated-report
 Accept: application/json
+
+### 리포트 다운로드
+GET {{baseUrl}}/reports/download-report?date=2024-10-15
+
+### 오늘 날짜의 리포트 다운로드
+# @name downloadTodayReport
+GET {{baseUrl}}/reports/download-report
+    ?date={{$datetime iso8601}}

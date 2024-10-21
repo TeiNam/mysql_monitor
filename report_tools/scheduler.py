@@ -8,6 +8,7 @@ import httpx
 import os
 import shutil
 
+from apis.routes.slow_query_stat import get_weekly_statistics
 from configs.scheduler_conf import SchedulerSettings
 from configs.app_conf import app_settings
 from configs.report_conf import report_settings
@@ -22,7 +23,8 @@ class ReportScheduler:
     def __init__(self):
         self.tasks: Dict[str, Callable] = {
             "collect_daily_metrics": self.collect_daily_metrics,
-            "cleanup_old_files": self.cleanup_old_files
+            "cleanup_old_files": self.cleanup_old_files,
+            "weekly_slow_query_report": self.weekly_slow_query_report  # 새로운 태스크 추가
         }
 
     async def collect_daily_metrics(self):
@@ -97,6 +99,13 @@ class ReportScheduler:
         else:
             logger.warning(f"Task {task_name} not found in scheduler")
 
+    async def weekly_slow_query_report(self):
+        try:
+            await get_weekly_statistics()
+            logger.info("Weekly slow query report generated and sent successfully")
+        except Exception as e:
+            logger.error(f"An error occurred while generating weekly slow query report: {e}")
+
     async def start(self):
         tasks = [
             self.schedule_task("collect_daily_metrics",
@@ -104,7 +113,8 @@ class ReportScheduler:
                                scheduler_settings.COLLECT_DAILY_METRICS_MINUTE),
             self.schedule_task("cleanup_old_files",
                                scheduler_settings.CLEANUP_OLD_FILES_HOUR,
-                               scheduler_settings.CLEANUP_OLD_FILES_MINUTE)
+                               scheduler_settings.CLEANUP_OLD_FILES_MINUTE),
+            self.schedule_task("weekly_slow_query_report", 10, 0)  # 매주 월요일 오전 10시에 실행
         ]
         await asyncio.gather(*tasks)
 
@@ -115,3 +125,4 @@ def start_scheduler():
 
 if __name__ == "__main__":
     start_scheduler()
+

@@ -1,70 +1,64 @@
 import requests
-from configs.slack_conf import SLACK_API_TOKEN, SLACK_WEBHOOK_URL, HOST
+from configs.slack_conf import SLACK_WEBHOOK_URL
 import logging
+from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
 
-def get_slack_user_id(email: str) -> str:
+def send_slack_notification(header: str, body: Dict[str, Any], footer: str = None):
     """
-    이메일을 사용하여 Slack 사용자 ID를 조회합니다.
+    Slack으로 유연한 형식의 알림을 보냅니다.
 
-    :param email: 사용자 이메일
-    :return: Slack 사용자 ID 또는 None (사용자를 찾지 못한 경우)
+    :param header: 알림의 헤더 (제목)
+    :param body: 알림의 본문 (딕셔너리 형태)
+    :param footer: 알림의 푸터 (선택적)
     """
-    headers = {
-        'Authorization': f'Bearer {SLACK_API_TOKEN}',
-        'Content-Type': 'application/json'
-    }
-    response = requests.get(f'https://slack.com/api/users.lookupByEmail?email={email}', headers=headers, verify=False)
-    if response.status_code == 200 and response.json()['ok']:
-        return response.json()['user']['id']
-    logger.error(f"Slack 사용자 ID 조회 실패: {email}")
-    return None
+    formatted_message = f"*{header}*\n\n"
 
-def send_slack_notification(user_email: str, title: str, instance_info: str, db_info: str, pid_info: str, execution_time: float):
-    """
-    Slack으로 SQL 쿼리 실행 알림을 보냅니다.
+    for key, value in body.items():
+        formatted_message += f"*{key}*: {value}\n"
 
-    :param user_email: 사용자 이메일
-    :param title: 알림 제목
-    :param instance_info: 인스턴스 정보
-    :param db_info: 데이터베이스 정보
-    :param pid_info: 프로세스 ID 정보
-    :param execution_time: 쿼리 실행 시간 (초)
-    """
-    user_id = get_slack_user_id(user_email)
-    if user_id is None:
-        raise ValueError(f"Slack에서 사용자를 찾을 수 없습니다: {user_email}")
-
-    formatted_message = (
-        f'*{title}*\n'
-        f'<@{user_id}> 계정으로 실행한 SQL쿼리(PID: {pid_info})가\n'
-        f'*{instance_info}*, *{db_info}* DB에서 *{execution_time}* 초 동안 실행 되었습니다.\n'
-        f'쿼리 검수 및 실행 시 주의가 필요합니다.\n'
-        f'http://{HOST}:8000/sql-plan?pid={pid_info}'
-    )
+    if footer:
+        formatted_message += f"\n{footer}"
 
     payload = {'text': formatted_message}
     response = requests.post(SLACK_WEBHOOK_URL, json=payload)
 
     if response.status_code != 200:
         error_message = f"Slack 알림 전송 실패. 상태 코드: {response.status_code}, 응답: {response.text}"
-        logging.error(error_message)
+        logger.error(error_message)
         raise ValueError(error_message)
 
-    logger.info(f"Slack 알림 전송 성공: {user_email}")
+    logger.info(f"Slack 알림 전송 성공: {header}")
+
 
 # 사용 예시
 if __name__ == "__main__":
     try:
+        # 시스템 상태 알림 예시
         send_slack_notification(
-            user_email="example@example.com",
-            title="SQL 쿼리 실행 알림",
-            instance_info="Production Server",
-            db_info="Main Database",
-            pid_info="12345",
-            execution_time=10.5
+            header="DB 슬랙 봇 테스트",
+            body={
+                "상태": "정상",
+                "CPU 사용률": "65%",
+                "메모리 사용률": "80%",
+                "디스크 공간": "500GB 남음"
+            },
+            footer="자세한 내용은 대시보드를 확인해주세요."
         )
+
+        # 보안 알림 예시
+        send_slack_notification(
+            header="보안 경고",
+            body={
+                "이벤트 유형": "무단 접근 시도",
+                "IP 주소": "192.168.1.100",
+                "시도 횟수": "5회",
+                "시간": "2023-10-21 15:30:00"
+            },
+            footer="즉시 보안 팀에 보고해주세요."
+        )
+
     except ValueError as e:
         logger.error(f"Slack 알림 전송 중 오류 발생: {e}")

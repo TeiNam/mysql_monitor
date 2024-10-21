@@ -2,24 +2,27 @@ import os
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
 from functools import lru_cache
+from typing import Optional
 
 # .env 파일 로드
 load_dotenv()
 
 
 class SlackSettings(BaseSettings):
-    SLACK_WEBHOOK_URL: str = os.getenv("SLACK_WEBHOOK_URL")
+    SLACK_WEBHOOK_URL: str = os.getenv("SLACK_WEBHOOK_URL", "")
     HOST: str = os.getenv("HOST", "localhost")
 
-    # 추가 설정들
-    aes_key: str = os.getenv("AES_KEY")
-    aes_iv: str = os.getenv("AES_IV")
-    mongodb_uri: str = os.getenv("MONGODB_URI")
-    mongodb_db_name: str = os.getenv("MONGODB_DB_NAME")
-    aws_regions: str = os.getenv("AWS_REGIONS")
-    account: str = os.getenv("ACCOUNT")
-    aws_account_ids: str = os.getenv("AWS_ACCOUNT_IDS")
-    openai_api_key: str = os.getenv("OPENAI_API_KEY")
+    # aws_account_ids를 선택적 필드로 변경
+    aws_account_ids: Optional[str] = None
+
+    # 다른 필드들도 필요에 따라 Optional로 설정하거나 기본값 제공
+    aes_key: Optional[str] = None
+    aes_iv: Optional[str] = None
+    mongodb_uri: Optional[str] = None
+    mongodb_db_name: Optional[str] = None
+    aws_regions: Optional[str] = None
+    account: Optional[str] = None
+    openai_api_key: Optional[str] = None
 
     class Config:
         env_file = ".env"
@@ -38,5 +41,6 @@ HOST = slack_settings.HOST
 # 설정 값 검증
 if not SLACK_WEBHOOK_URL:
     raise ValueError("SLACK_WEBHOOK_URL is not set in the environment variables.")
-if not HOST:
-    raise ValueError("HOST is not set in the environment variables.")
+if HOST == "localhost":
+    print(
+        "Warning: HOST is set to default value 'localhost'. Consider setting it explicitly in the environment variables.")

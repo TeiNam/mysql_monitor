@@ -99,7 +99,6 @@ GET {{baseUrl}}/command_status
 GET {{baseUrl}}/disk_usage
     ?instance_name=orderservice
 
-&metric=Binlog_cache_use&metric=Binlog_cache_disk_use
 
 ###
 GET https://mgmt.py.devops.torder.tech/api/v1/disk_usage

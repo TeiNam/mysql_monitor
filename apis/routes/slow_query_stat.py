@@ -130,37 +130,6 @@ async def get_simplified_slow_query_stats(start_datetime, end_datetime):
 
     return result[0] if result else {"total_count": 0, "max_execution_time": 0}
 
-
-@router.get("/weekly_slow_query_stats")
-async def get_weekly_statistics():
-    today = datetime.now().date()
-    days_since_monday = today.weekday()
-    last_monday = today - timedelta(days=days_since_monday + 7)
-    last_sunday = last_monday + timedelta(days=6)
-
-    start_datetime = datetime.combine(last_monday, datetime.min.time())
-    end_datetime = datetime.combine(last_sunday, datetime.max.time())
-
-    logger.info(f"Fetching weekly stats from {start_datetime} to {end_datetime}")
-
-    result = await get_slow_query_stats(start_datetime, end_datetime)
-
-    if not result:
-        logger.warning("No slow query data found for the specified week")
-
-    try:
-        await send_slack_weekly_report(result, last_monday, last_sunday)
-    except Exception as e:
-        logger.error(f"주간 보고서 전송 실패: {e}")
-
-    return {
-        "start_date": last_monday.strftime("%Y-%m-%d"),
-        "end_date": last_sunday.strftime("%Y-%m-%d"),
-        "is_cumulative": False,
-        "data": result
-    }
-
-
 async def send_slack_weekly_report(data: List[Dict], start_date: datetime.date, end_date: datetime.date):
     # 데이터 집계
     db_stats = {}
@@ -213,3 +182,55 @@ async def send_slack_weekly_report(data: List[Dict], start_date: datetime.date, 
         raise
 
     return True
+
+
+@router.get("/slow_query_stats")
+async def get_statistics(
+    start_date: str = Query(None, description="Start date in YYYY-MM-DD format"),
+    end_date: str = Query(None, description="End date in YYYY-MM-DD format"),
+    days: int = Query(7, description="Number of days to look back if no dates are provided")
+):
+    if not start_date and not end_date:
+        end_datetime = datetime.now()
+        start_datetime = end_datetime - timedelta(days=days)
+    else:
+        start_datetime = datetime.strptime(start_date, "%Y-%m-%d") if start_date else None
+        end_datetime = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1) if end_date else None
+
+    result = await get_slow_query_stats(start_datetime, end_datetime)
+
+    return {
+        "start_date": start_datetime.strftime("%Y-%m-%d") if start_datetime else None,
+        "end_date": (end_datetime - timedelta(days=1)).strftime("%Y-%m-%d") if end_datetime else None,
+        "is_cumulative": not (start_datetime and end_datetime),
+        "data": result
+    }
+
+@router.get("/weekly_slow_query_stats")
+async def get_weekly_statistics():
+    today = datetime.now().date()
+    days_since_monday = today.weekday()
+    last_monday = today - timedelta(days=days_since_monday + 7)
+    last_sunday = last_monday + timedelta(days=6)
+
+    start_datetime = datetime.combine(last_monday, datetime.min.time())
+    end_datetime = datetime.combine(last_sunday, datetime.max.time())
+
+    logger.info(f"Fetching weekly stats from {start_datetime} to {end_datetime}")
+
+    result = await get_slow_query_stats(start_datetime, end_datetime)
+
+    if not result:
+        logger.warning("No slow query data found for the specified week")
+
+    try:
+        await send_slack_weekly_report(result, last_monday, last_sunday)
+    except Exception as e:
+        logger.error(f"주간 보고서 전송 실패: {e}")
+
+    return {
+        "start_date": last_monday.strftime("%Y-%m-%d"),
+        "end_date": last_sunday.strftime("%Y-%m-%d"),
+        "is_cumulative": False,
+        "data": result
+    }

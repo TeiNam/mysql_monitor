@@ -1,9 +1,9 @@
 import asyncio
 import logging
 from datetime import datetime, timedelta
-from typing import Callable, Dict, Any
 import pytz
 from fastapi import HTTPException
+from typing import Callable, Dict, Any
 import httpx
 import os
 import shutil
@@ -27,6 +27,45 @@ class ReportScheduler:
             "weekly_slow_query_report": self.weekly_slow_query_report  # 새로운 태스크 추가
         }
         self.weekly_tasks = {"weekly_slow_query_report"}  # 주간 태스크 집합 추가
+
+    async def schedule_task(self, task_name: str, hour: int, minute: int):
+        while True:
+            # 현재 시간을 KST로 가져오기
+            now = datetime.now(kst)
+
+            # 다음 실행 시간을 KST로 설정
+            next_run = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+
+            if task_name in self.weekly_tasks:
+                # 현재 요일이 월요일(0)이고 지정된 시간이 지나지 않았다면 오늘
+                # 그렇지 않다면 다음 월요일로 설정
+                days_until_monday = (7 - now.weekday()) % 7
+                if days_until_monday == 0 and now.time() < datetime.strptime(f"{hour}:{minute}", "%H:%M").time():
+                    pass  # 오늘이 월요일이고 아직 시간이 안됐으면 그대로 둠
+                else:
+                    if days_until_monday == 0:  # 월요일인데 시간이 지난 경우
+                        days_until_monday = 7
+                    next_run += timedelta(days=days_until_monday)
+            else:
+                # 일일 태스크의 경우
+                if next_run <= now:
+                    next_run += timedelta(days=1)
+
+            # KST 기준으로 대기 시간 계산
+            wait_seconds = (next_run - now).total_seconds()
+
+            logger.info(f"Next run of {task_name} scheduled at {next_run.strftime('%Y-%m-%d %H:%M:%S %Z')} KST")
+            logger.info(f"Current time is {now.strftime('%Y-%m-%d %H:%M:%S %Z')} KST")
+            logger.info(f"Waiting for {wait_seconds} seconds")
+
+            await asyncio.sleep(wait_seconds)
+
+            # 실행 시점에서 다시 한번 요일 체크 (주간 태스크의 경우)
+            current_time = datetime.now(kst)
+            if task_name in self.weekly_tasks and current_time.weekday() != 0:  # 월요일이 아니면 스킵
+                continue
+
+            await self.run_task(task_name)
 
     async def collect_daily_metrics(self):
         url = f"{app_settings.BASE_URL}/api/v1/prometheus/collect-daily-metrics"
@@ -118,8 +157,13 @@ class ReportScheduler:
 
     async def weekly_slow_query_report(self):
         try:
-            await get_weekly_statistics()
-            logger.info("Weekly slow query report generated and sent successfully")
+            # 현재 시간이 월요일인지 확인
+            now = datetime.now(kst)
+            if now.weekday() == 0:  # 0 = 월요일
+                await get_weekly_statistics()
+                logger.info("Weekly slow query report generated and sent successfully")
+            else:
+                logger.warning(f"Skipping weekly report as today is not Monday (current day: {now.strftime('%A')})")
         except Exception as e:
             logger.error(f"An error occurred while generating weekly slow query report: {e}")
 
@@ -131,8 +175,9 @@ class ReportScheduler:
             self.schedule_task("cleanup_old_files",
                                scheduler_settings.CLEANUP_OLD_FILES_HOUR,
                                scheduler_settings.CLEANUP_OLD_FILES_MINUTE),
-            self.schedule_task("weekly_slow_query_report", 10, 0)  # 매주 월요일 오전 10시
+            self.schedule_task("weekly_slow_query_report", 10, 0)  # 매주 월요일 오전 10시 (KST)
         ]
+        logger.info("Starting scheduler with KST timezone")
         await asyncio.gather(*tasks)
 
 scheduler = ReportScheduler()

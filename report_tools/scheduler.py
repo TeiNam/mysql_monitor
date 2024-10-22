@@ -26,6 +26,7 @@ class ReportScheduler:
             "cleanup_old_files": self.cleanup_old_files,
             "weekly_slow_query_report": self.weekly_slow_query_report  # 새로운 태스크 추가
         }
+        self.weekly_tasks = {"weekly_slow_query_report"}  # 주간 태스크 집합 추가
 
     async def collect_daily_metrics(self):
         url = f"{app_settings.BASE_URL}/api/v1/prometheus/collect-daily-metrics"
@@ -79,13 +80,29 @@ class ReportScheduler:
         while True:
             now = datetime.now(kst)
             next_run = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
-            if next_run <= now:
-                next_run += timedelta(days=1)
+
+            # 주간 태스크인 경우 다음 월요일로 설정
+            if task_name in self.weekly_tasks:
+                # 현재 요일이 월요일(0)이고 지정된 시간이 지나지 않았다면 오늘
+                # 그렇지 않다면 다음 월요일로 설정
+                days_until_monday = (7 - now.weekday()) % 7
+                if days_until_monday == 0 and now.time() < datetime.strptime(f"{hour}:{minute}", "%H:%M").time():
+                    pass  # 오늘이 월요일이고 아직 시간이 안됐으면 그대로 둠
+                else:
+                    if days_until_monday == 0:  # 월요일인데 시간이 지난 경우
+                        days_until_monday = 7
+                    next_run += timedelta(days=days_until_monday)
+            else:
+                # 일일 태스크의 경우 기존 로직 유지
+                if next_run <= now:
+                    next_run += timedelta(days=1)
 
             wait_seconds = (next_run - now).total_seconds()
             logger.info(f"Next run of {task_name} scheduled at {next_run}")
 
             await asyncio.sleep(wait_seconds)
+            if task_name in self.weekly_tasks and now.weekday() != 0:  # 월요일이 아니면 스킵
+                continue
             await self.run_task(task_name)
 
     def add_task(self, task_name: str, task: Callable):
@@ -114,7 +131,7 @@ class ReportScheduler:
             self.schedule_task("cleanup_old_files",
                                scheduler_settings.CLEANUP_OLD_FILES_HOUR,
                                scheduler_settings.CLEANUP_OLD_FILES_MINUTE),
-            self.schedule_task("weekly_slow_query_report", 10, 0)  # 매주 월요일 오전 10시에 실행
+            self.schedule_task("weekly_slow_query_report", 10, 0)  # 매주 월요일 오전 10시
         ]
         await asyncio.gather(*tasks)
 

@@ -1,102 +1,176 @@
-import matplotlib.pyplot as plt
+# graph_generation.py
+
 import os
-from io import BytesIO
-import aiofiles
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
+import matplotlib.pyplot as plt
+import seaborn as sns
+from datetime import datetime
 import structlog
 
 logger = structlog.get_logger()
 
-async def save_graph(fig, path):
-    buf = BytesIO()
-    fig.savefig(buf, format='png')
-    buf.seek(0)
-    async with aiofiles.open(path, 'wb') as f:
-        await f.write(buf.getvalue())
 
-async def create_instance_graphs(data: Dict[str, Any], date: str, report_dir: str):
+async def create_instance_graphs(instance_data: Dict[str, Any], date: str, report_dir: str) -> Tuple[str, str, str]:
+    """인스턴스 관련 그래프들을 생성하는 함수"""
     try:
-        # 계정별 그래프
-        fig, ax = plt.subplots(figsize=(10, 6))
-        accounts = [account['account_id'] for account in data['accounts']]
-        instance_counts = [account['instance_count'] for account in data['accounts']]
-        ax.bar(accounts, instance_counts)
-        ax.set_title("Instances by Account")
-        ax.set_xlabel("Account ID")
-        ax.set_ylabel("Instance Count")
-        plt.xticks(rotation=45, ha='right')
-        plt.tight_layout()
-        account_graph_path = os.path.join(report_dir, f"account_graph_{date}.png")
-        await save_graph(fig, account_graph_path)
-        plt.close(fig)
+        # 1. 계정별 인스턴스 분포 그래프
+        account_graph = await create_account_distribution_graph(instance_data, date, report_dir)
 
-        # 리전별 그래프
-        fig, ax = plt.subplots(figsize=(8, 6))
-        regions = [region['region'] for region in data['regions']]
-        region_counts = [region['instance_count'] for region in data['regions']]
-        ax.pie(region_counts, labels=regions, autopct='%1.1f%%', startangle=90)
-        ax.set_title("Instances by Region")
-        plt.axis('equal')
-        region_graph_path = os.path.join(report_dir, f"region_graph_{date}.png")
-        await save_graph(fig, region_graph_path)
-        plt.close(fig)
+        # 2. 리전별 인스턴스 분포 그래프
+        region_graph = await create_region_distribution_graph(instance_data, date, report_dir)
 
-        # 인스턴스 클래스별 그래프
-        fig, ax = plt.subplots(figsize=(12, 6))
-        classes = list(data['instance_classes'].keys())
-        class_counts = list(data['instance_classes'].values())
-        ax.bar(classes, class_counts)
-        ax.set_title("Instance Class Distribution")
-        ax.set_xlabel("Instance Class")
-        ax.set_ylabel("Count")
-        plt.xticks(rotation=45, ha='right')
-        plt.tight_layout()
-        class_graph_path = os.path.join(report_dir, f"class_graph_{date}.png")
-        await save_graph(fig, class_graph_path)
-        plt.close(fig)
+        # 3. 인스턴스 클래스 분포 그래프
+        class_graph = await create_instance_class_distribution_graph(instance_data, date, report_dir)
 
-        return account_graph_path, region_graph_path, class_graph_path
+        return account_graph, region_graph, class_graph
+
     except Exception as e:
-        logger.error("Error creating instance graphs", error=str(e))
+        logger.error(f"Error creating instance graphs: {str(e)}")
         raise
 
-async def create_prometheus_graphs(data: List[Dict[str, Any]], start_date: str, end_date: str, report_dir: str):
+
+async def create_account_distribution_graph(instance_data: Dict[str, Any], date: str, report_dir: str) -> str:
+    """계정별 인스턴스 분포 그래프 생성"""
+    plt.figure(figsize=(12, 6))
+    accounts = [acc['account_id'] for acc in instance_data['accounts']]
+    counts = [acc['instance_count'] for acc in instance_data['accounts']]
+
+    # 막대 그래프 생성
+    sns.barplot(x=accounts, y=counts)
+    plt.xticks(rotation=45, ha='right')
+    plt.title('Account-wise Instance Distribution')
+    plt.xlabel('Account ID')
+    plt.ylabel('Number of Instances')
+
+    # 그래프 저장
+    filename = f"account_distribution_{date}.png"
+    filepath = os.path.join(report_dir, filename)
+    plt.tight_layout()
+    plt.savefig(filepath)
+    plt.close()
+
+    return filepath
+
+
+async def create_region_distribution_graph(instance_data: Dict[str, Any], date: str, report_dir: str) -> str:
+    """리전별 인스턴스 분포 그래프 생성"""
+    plt.figure(figsize=(12, 6))
+    regions = [reg['region'] for reg in instance_data['regions']]
+    counts = [reg['instance_count'] for reg in instance_data['regions']]
+
+    # 막대 그래프 생성
+    sns.barplot(x=regions, y=counts)
+    plt.xticks(rotation=45, ha='right')
+    plt.title('Region-wise Instance Distribution')
+    plt.xlabel('Region')
+    plt.ylabel('Number of Instances')
+
+    # 그래프 저장
+    filename = f"region_distribution_{date}.png"
+    filepath = os.path.join(report_dir, filename)
+    plt.tight_layout()
+    plt.savefig(filepath)
+    plt.close()
+
+    return filepath
+
+
+async def create_instance_class_distribution_graph(instance_data: Dict[str, Any], date: str, report_dir: str) -> str:
+    """인스턴스 클래스 분포 그래프 생성"""
+    plt.figure(figsize=(12, 6))
+    classes = list(instance_data['instance_classes'].keys())
+    counts = list(instance_data['instance_classes'].values())
+
+    # 막대 그래프 생성
+    sns.barplot(x=classes, y=counts)
+    plt.xticks(rotation=45, ha='right')
+    plt.title('Instance Class Distribution')
+    plt.xlabel('Instance Class')
+    plt.ylabel('Number of Instances')
+
+    # 그래프 저장
+    filename = f"class_distribution_{date}.png"
+    filepath = os.path.join(report_dir, filename)
+    plt.tight_layout()
+    plt.savefig(filepath)
+    plt.close()
+
+    return filepath
+
+
+async def create_prometheus_graphs(prometheus_data: List[Dict[str, Any]],
+                                   start_date: str, end_date: str,
+                                   report_dir: str) -> Tuple[str, str]:
+    """Prometheus 메트릭 그래프 생성"""
     try:
         # CPU 사용률 그래프
-        fig, ax = plt.subplots(figsize=(12, 6))
-        for instance in data[0]['metrics']:
-            dates = [d['date'] for d in data]
-            cpu_usage = [d['metrics'][instance]['rds_cpu_usage_percent_average']['avg'] for d in data]
-            ax.plot(dates, cpu_usage, label=instance)
-        ax.set_title("Average CPU Usage by Instance")
-        ax.set_xlabel("Date")
-        ax.set_ylabel("CPU Usage (%)")
-        ax.legend()
-        plt.xticks(rotation=45)
-        plt.tight_layout()
-        cpu_graph_path = os.path.join(report_dir, f"cpu_usage_{start_date}_{end_date}.png")
-        await save_graph(fig, cpu_graph_path)
-        plt.close(fig)
+        cpu_graph = await create_cpu_usage_graph(prometheus_data, start_date, end_date, report_dir)
 
         # IOPS 그래프
-        fig, ax = plt.subplots(figsize=(12, 6))
-        for instance in data[0]['metrics']:
-            dates = [d['date'] for d in data]
-            read_iops = [d['metrics'][instance]['rds_read_iops_average']['avg'] for d in data]
-            write_iops = [d['metrics'][instance]['rds_write_iops_average']['avg'] for d in data]
-            ax.plot(dates, read_iops, label=f"{instance} Read")
-            ax.plot(dates, write_iops, label=f"{instance} Write")
-        ax.set_title("Average Read and Write IOPS by Instance")
-        ax.set_xlabel("Date")
-        ax.set_ylabel("IOPS")
-        ax.legend()
-        plt.xticks(rotation=45)
-        plt.tight_layout()
-        iops_graph_path = os.path.join(report_dir, f"iops_{start_date}_{end_date}.png")
-        await save_graph(fig, iops_graph_path)
-        plt.close(fig)
+        iops_graph = await create_iops_graph(prometheus_data, start_date, end_date, report_dir)
 
-        return cpu_graph_path, iops_graph_path
+        return cpu_graph, iops_graph
+
     except Exception as e:
-        logger.error("Error creating Prometheus graphs", error=str(e))
+        logger.error(f"Error creating prometheus graphs: {str(e)}")
         raise
+
+
+async def create_cpu_usage_graph(prometheus_data: List[Dict[str, Any]],
+                                 start_date: str, end_date: str,
+                                 report_dir: str) -> str:
+    """CPU 사용률 그래프 생성"""
+    plt.figure(figsize=(15, 8))
+
+    dates = [d['date'] for d in prometheus_data]
+    for instance in prometheus_data[0]['metrics']:
+        cpu_values = [d['metrics'][instance]['rds_cpu_usage_percent_average']['avg']
+                      for d in prometheus_data]
+        plt.plot(dates, cpu_values, label=instance, marker='o')
+
+    plt.title('CPU Usage Over Time')
+    plt.xlabel('Date')
+    plt.ylabel('CPU Usage (%)')
+    plt.xticks(rotation=45, ha='right')
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.grid(True)
+
+    filename = f"cpu_usage_{start_date}_{end_date}.png"
+    filepath = os.path.join(report_dir, filename)
+    plt.tight_layout()
+    plt.savefig(filepath)
+    plt.close()
+
+    return filepath
+
+
+async def create_iops_graph(prometheus_data: List[Dict[str, Any]],
+                            start_date: str, end_date: str,
+                            report_dir: str) -> str:
+    """IOPS 그래프 생성"""
+    plt.figure(figsize=(15, 8))
+
+    dates = [d['date'] for d in prometheus_data]
+    for instance in prometheus_data[0]['metrics']:
+        read_iops = [d['metrics'][instance]['rds_read_iops_average']['avg']
+                     for d in prometheus_data]
+        write_iops = [d['metrics'][instance]['rds_write_iops_average']['avg']
+                      for d in prometheus_data]
+
+        plt.plot(dates, read_iops, label=f"{instance} (Read)", linestyle='-', marker='o')
+        plt.plot(dates, write_iops, label=f"{instance} (Write)", linestyle='--', marker='s')
+
+    plt.title('Read/Write IOPS Over Time')
+    plt.xlabel('Date')
+    plt.ylabel('IOPS')
+    plt.xticks(rotation=45, ha='right')
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.grid(True)
+
+    filename = f"iops_{start_date}_{end_date}.png"
+    filepath = os.path.join(report_dir, filename)
+    plt.tight_layout()
+    plt.savefig(filepath)
+    plt.close()
+
+    return filepath

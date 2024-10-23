@@ -152,7 +152,7 @@ Accept: application/json
 ### report_generator.py 테스트
 
 ### 통합 리포트 생성하기 (날짜 범위 지정)
-GET http://localhost:8000/api/v1/reports/generate-integrated-report?start_date=2024-10-01&end_date=2024-10-21
+GET http://localhost:8000/api/v1/reports/generate-integrated-report?start_date=2024-10-01&end_date=2024-10-23
 Accept: application/json
 
 ###
@@ -180,5 +180,5 @@ GET {{baseUrl}}/weekly_slow_query_stats
 Accept: application/json
 
 ### 기간별 인스턴스 통계 조회 - 한 달 단위
-GET {{baseUrl}}/reports/instance-statistics-by-period?start_date=2024-10-01&end_date=2024-10-22
+GET {{baseUrl}}/reports/instance-statistics-by-period?start_date=2024-10-01&end_date=2024-10-23
 Accept: application/json

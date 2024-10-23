@@ -1,13 +1,15 @@
-# cleanup.py
+# utils/cleanup.py
 import os
 import shutil
 from datetime import datetime, timedelta
 import pytz
 import logging
 from typing import Dict, List
+from fastapi import APIRouter
 from configs.report_conf import report_settings
 
 logger = logging.getLogger(__name__)
+router = APIRouter()
 kst = pytz.timezone('Asia/Seoul')
 
 
@@ -108,3 +110,28 @@ class ReportCleaner:
                          files=deleted_items["files"])
         else:
             logger.info("No items needed cleanup")
+
+
+# API 라우터 추가
+@router.post("/cleanup", description="수동으로 클린업 실행")
+async def manual_cleanup(retention_days: int = 31):
+    """
+    수동으로 클린업을 실행하는 엔드포인트
+
+    Args:
+        retention_days (int): 보관할 날짜 수 (기본값: 31일)
+    """
+    try:
+        cleaner = ReportCleaner(retention_days=retention_days)
+        results = await cleaner.cleanup()
+        return {
+            "status": "success",
+            "message": "Cleanup completed successfully",
+            "deleted_items": results
+        }
+    except Exception as e:
+        logger.error(f"Failed to execute manual cleanup: {str(e)}")
+        return {
+            "status": "error",
+            "message": str(e)
+        }

@@ -5,7 +5,7 @@ import httpx
 import zipfile
 from fastapi import APIRouter, HTTPException, Query
 from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Set
 import structlog
 from configs.report_conf import report_settings
 from configs.openai_conf import openai_settings
@@ -17,6 +17,30 @@ from .graph_generation import create_instance_graphs, create_prometheus_graphs
 logger = structlog.get_logger()
 router = APIRouter()
 client = AsyncOpenAI(api_key=openai_settings.OPENAI_API_KEY)
+
+async def create_zip_archive(report_dir: str, report_file: str, graph_files: Set[str]) -> str:
+    """리포트와 그래프들을 ZIP 파일로 압축"""
+    try:
+        # ZIP 파일명 생성
+        zip_filename = os.path.splitext(report_file)[0] + '.zip'
+        zip_filepath = os.path.join(report_dir, zip_filename)
+
+        # ZIP 파일 생성
+        with zipfile.ZipFile(zip_filepath, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            # 리포트 파일 추가
+            report_filepath = os.path.join(report_dir, report_file)
+            zipf.write(report_filepath, os.path.basename(report_filepath))
+
+            # 그래프 파일들 추가
+            for graph_file in graph_files:
+                if graph_file and os.path.exists(os.path.join(report_dir, os.path.basename(graph_file))):
+                    graph_filepath = os.path.join(report_dir, os.path.basename(graph_file))
+                    zipf.write(graph_filepath, os.path.basename(graph_filepath))
+
+        return zip_filepath
+    except Exception as e:
+        logger.error(f"Error creating ZIP archive: {str(e)}")
+        raise
 
 
 async def get_monthly_instance_changes(start_date: str, end_date: str) -> Optional[Dict[str, Any]]:
@@ -232,32 +256,6 @@ async def create_integrated_report(instance_data: Dict[str, Any], prometheus_dat
     report += analysis + "\n\n"
 
     return report
-
-async def create_zip_archive(report_dir: str, report_file: str, graph_files: Set[str]) -> str:
-    """리포트와 그래프들을 ZIP 파일로 압축"""
-    try:
-        # ZIP 파일명 생성
-        zip_filename = report_file.replace('.md', '.zip')
-        zip_filepath = os.path.join(report_dir, zip_filename)
-
-        # ZIP 파일 생성
-        with zipfile.ZipFile(zip_filepath, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            # 리포트 파일 추가
-            report_filepath = os.path.join(report_dir, report_file)
-            zipf.write(report_filepath, os.path.basename(report_filepath))
-
-            # 그래프 파일들 추가
-            for graph_file in graph_files:
-                graph_filepath = os.path.join(report_dir, graph_file)
-                if os.path.exists(graph_filepath):
-                    zipf.write(graph_filepath, os.path.basename(graph_filepath))
-
-        logger.info("Successfully created ZIP archive", zip_file=zip_filepath)
-        return zip_filepath
-
-    except Exception as e:
-        logger.error(f"Error creating ZIP archive: {str(e)}")
-        raise
 
 @router.get("/generate-integrated-report")
 async def generate_integrated_report(

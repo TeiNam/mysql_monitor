@@ -95,6 +95,10 @@ async def get_rds_instances(session: Any, account_id: str) -> List[dict]:
                         'DBInstanceClass': instance.get('DBInstanceClass'),
                         'Engine': instance.get('Engine'),
                         'EngineVersion': instance.get('EngineVersion'),
+                        'Endpoint': {
+                            'Address': instance.get('Endpoint', {}).get('Address'),
+                            'Port': instance.get('Endpoint', {}).get('Port')
+                        } if instance.get('Endpoint') else None,
                         'DBInstanceStatus': instance.get('DBInstanceStatus'),
                         'MasterUsername': instance.get('MasterUsername'),
                         'AllocatedStorage': instance.get('AllocatedStorage'),
